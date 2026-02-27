@@ -1,30 +1,24 @@
 # pcc-vmapple
 
-[简体中文](./README_zh-Hans.md)
+长话短说，Apple 的 Private Cloud Compute 提供了用于安全研究的系列虚拟机，其中包含了可以启动 iOS/iPhone 环境的虚拟机配置。
 
-Long story short, Apple's Private Cloud Compute provides a series of virtual machines for security research, which includes VM configurations capable of booting an iOS/iPhone environment.
+用于恢复的虚拟机系统是 pcc 专用镜像，负责 LLM 推理和提供服务。在修改启动固件和 LLB/iBSS/Kernel 之后，可用于加载 iOS 26 虚拟机。
 
-The VM system used for recovery is a dedicated pcc image, responsible for LLM inference and providing services. After modifying the boot firmware and LLB/iBSS/Kernel, it can be used to load an iOS 26 virtual machine.
+## 准备开发环境
 
-![poc](./demo.png)
-
-## Prepare Development Environment
-
-> **Note:** Disabling SIP is not for modifying the system. We can use a custom boot ROM via private APIs, but `Virtualization.framework` checks our binary's entitlements before allowing the launch of a specially configured VM. Therefore, we need to disable SIP to modify boot arguments and disable AMFI checks.
-
-### Reboot into Recovery Mode
+### 重启进入恢复模式
 
 `csrutil disable`
 
 `csrutil allow-research-guests enable`
 
-### Reboot into System
+### 重启进入系统
 
 `sudo nvram boot-args="amfi_get_out_of_my_way=1 -v"`
 
-## Prepare Resource Files
+## 准备资源文件
 
-### Enable Research Environment VM Resource Control
+### 启用研究环境虚拟机资源控制
 
 - `sudo /System/Library/SecurityResearch/usr/bin/pccvre`
 - `cd /System/Library/SecurityResearch/usr/bin/`
@@ -32,24 +26,28 @@ The VM system used for recovery is a dedicated pcc image, responsible for LLM in
 - `./pccvre release download --release 35622`
 - `./pccvre instance create -N pcc-research -R 35622 --variant research`
 
-### Obtain Resource Files
+### 获取到资源文件
 
-Please prepare the pcc vm environment. We will need to use this virtual machine as a template, overwrite the boot firmware (removing signature checks) to load the customized LLB/iBoot for recovery.
+请准备好 pcc vm 的环境，我们会需要用这个虚拟机作为模版，覆盖启动固件（删除签名检查）来加载定制的 LLB/iBoot 进行恢复。
 
 - `~/Library/Application\ Support/com.apple.security-research.vrevm/VM-Library/pcc-research.vm`
 
-### Download Firmware
+### 下载固件
 
-We will prepare the hybrid firmware and modify it later.
+稍后准备杂交固件并进行修改。
 
-- [https://updates.cdn-apple.com/2025FallFCS/fullrestores/089-13864/668EFC0E-5911-454C-96C6-E1063CB80042/iPhone17,3_26.1_23B85_Restore.ipsw](https://updates.cdn-apple.com/2025FallFCS/fullrestores/089-13864/668EFC0E-5911-454C-96C6-E1063CB80042/iPhone17,3_26.1_23B85_Restore.ipsw)
-- [https://updates.cdn-apple.com/private-cloud-compute/399b664dd623358c3de118ffc114e42dcd51c9309e751d43bc949b98f4e31349](https://updates.cdn-apple.com/private-cloud-compute/399b664dd623358c3de118ffc114e42dcd51c9309e751d43bc949b98f4e31349)
+- [https://updates.cdn-apple.com/2025FallFCS/fullrestores/089-13864/668EFC0E-5911-454C-96C6-E1063CB80042/iPhone17,3_26.1_23B85_Restore.ipsw](https://updates.cdn-apple.com/2025FallFCS/fullrestores/089-13864/668EFC0E-5911-454C-96C6-E1063CB80042/iPhone17,3_26.1_23B85_Restore.ipswhttps://updates.cdn-apple.com/private-cloud-compute/399b664dd623358c3de118ffc114e42dcd51c9309e751d43bc949b98f4e31349)
+- [https://updates.cdn-apple.com/private-cloud-compute/399b664dd623358c3de118ffc114e42dcd51c9309e751d43bc949b98f4e31349](https://updates.cdn-apple.com/2025FallFCS/fullrestores/089-13864/668EFC0E-5911-454C-96C6-E1063CB80042/iPhone17,3_26.1_23B85_Restore.ipswhttps://updates.cdn-apple.com/private-cloud-compute/399b664dd623358c3de118ffc114e42dcd51c9309e751d43bc949b98f4e31349)
 
-## First Boot of the Virtual Machine
+### 克隆仓库
 
-### Build the Binaries Required to Boot the VM
+- <https://github.com/Lakr233/vphone-cli>
 
-We can use the `vrevm` binary to boot the pcc virtual machine prepared by Apple, but since we need to boot customized firmware, we need to replicate the relevant configuration builder of `vrevm` and boot it manually.
+## 首次启动虚拟机
+
+### 构建启动虚拟机所需要的二进制
+
+我们可以使用 `vrevm` 二进制启动苹果准备好的 pcc 虚拟机，但由于我们需要启动定制化的固件，因此需要复刻 `vrevm` 的相关配置构造器，并手动启动。
 
 ```bash
 ➜  vphone-cli ./build_and_sign.sh
@@ -128,9 +126,9 @@ OPTIONS:
   -h, --help              Show help information.
 ```
 
-### Prepare VM Boot Firmware
+### 准备虚拟机启动固件
 
-Create a folder to store these files.
+创建一个文件夹，来储存这些文件。
 
 ```bash
 ➜  vphone-cli tree VM
@@ -150,9 +148,9 @@ Create a folder to store these files.
   - /System/Library/Frameworks/Virtualization.framework/Versions/A/Resources/AVPBooter.vresearch1.bin
 - AVPSEPBooter.vresearch1.bin
   - /System/Library/Frameworks/Virtualization.framework/Versions/A/Resources/AVPSEPBooter.vresearch1.bin
-- Please copy the remaining files from `pcc-research.vm`
+- 剩下的文件请从 `pcc-research.vm` 拷贝
 
-### Boot the VM into Recovery Mode
+### 启动虚拟机到恢复模式
 
 ```bash
 ➜  vphone-cli ./boot_dfu.sh
@@ -176,7 +174,7 @@ SEP   : enabled
 [vphone] VM
 ```
 
-Please confirm the Chip ID in the System Information.
+请在系统信息中确认芯片 ID。
 
 ```bash
 Apple Mobile Device (DFU Mode)：
@@ -191,16 +189,16 @@ Apple Mobile Device (DFU Mode)：
   USB产品版本：	0x0000
 ```
 
-If `CPFM` does not match, it can probably be ignored. The smaller the value, the greater the modification permissions of the system. (Unverified)
+其中 `CPFM` 对不上应该可以忽略，越小系统可修改的权限越大。（未考证）
 
-- 00 should be an engineering sample
-- 03 should be an end product
+- 00 应该是工程样品
+- 03 应该是终端产品
 
 ---
 
-### Obtain Restore Firmware Signature
+### 获取恢复固件的签名
 
-**It may be re-obtained later; this step is only to ensure your environment is working properly.** You need to add device adaptation information to `irecovery` for it to work correctly.
+后面还可能会重新获取，当前步骤仅用于确保你的环境正常工作。需要添加一个设备适配的信息到 `irecovery` 才能正确工作。
 
 `{ "iPhone99,11", "vresearch101ap", 0x90, 0xFE01, "iPhone 99,11" }, `
 
@@ -210,11 +208,11 @@ cd libirecovery
 ./autogen.sh
 make -j8
 
-# Must be installed to the system, idevicerestore used later depends on this framework
+# 必须安装到系统，稍后需要使用的 idevicerestore 依赖这个框架
 sudo make install
 ```
 
-At this point, you can query the virtual machine for device hardware information.
+此时，可以向虚拟机查询设备硬件信息。
 
 ```bash
 ➜  CFW git:(main) ✗ irecovery -q
@@ -236,7 +234,7 @@ MODEL: vresearch101ap
 NAME: iPhone 99,11
 ```
 
-Now, request the firmware signature. If the following error occurs, it might be because `autogen.sh` found a `libirecovery` in the system. The fastest way is to replace it directly. 🤣
+此时，请求固件签名。如果出现下面的错误，可能是因为 `autogen.sh` 去系统里面找了个 `libirecovery` 来。最快速的做法是直接替换。🤣
 
 ```bash
 ➜  CFW git:(main) ✗ idevicerestore -e -y ./iPhone17,3_26.1_23B85_Restore -t
@@ -246,12 +244,12 @@ Unable to discover device type
 ```
 
 ```bash
-# Replace /opt/homebrew/opt/libirecovery/lib/libirecovery-1.0.5.dylib with the following file
+# 用下面的文件替换 /opt/homebrew/opt/libirecovery/lib/libirecovery-1.0.5.dylib
 ./src/.libs/libirecovery-1.0.dylib
 ./src/.libs/libirecovery-1.0.5.dylib
 ```
 
-Make sure you see shsh in the output.
+确保输出看到 shsh。
 
 ```bash
 ➜  CFW git:(main) ✗ idevicerestore -e -y ./iPhone17,3_26.1_23B85_Restore -t
@@ -277,15 +275,13 @@ SHSH saved to 'shsh/206788706982711884-iPhone99,11-26.1.shsh'
 ➜  CFW git:(main) ✗
 ```
 
-> **Note:** If fetching SHSH keeps failing here, you can skip this step and proceed. This might be caused by a mismatched BuildManifest or similar issues. The firmware preparation scripts in the subsequent steps will build the correct manifest. If you don't encounter any issues later, this error can be safely ignored.
+## 解锁虚拟机固件
 
-## Unlock VM Firmware
+`AVPBooter.vresearch1.bin` 需要解锁才能接受自定义的杂交固件。
 
-`AVPBooter.vresearch1.bin` needs to be unlocked to accept custom hybrid firmware.
+### 找到所有 "DGST" （可略过）
 
-### Find all "DGST" (Optional)
-
-`if ( (_DWORD)v8 != 'DGST' )` is the logic for judgment. Taking the ROM on the author's system as an example.
+`if ( (_DWORD)v8 != 'DGST' )` 是判断的逻辑。以笔者系统搭载的 ROM 为例。
 
 ```bash
 __int64 __fastcall sub_102400(__int64 a1, __int64 a2, int a3, __int64 a4)
@@ -294,7 +290,7 @@ __int64 __fastcall sub_102400(__int64 a1, __int64 a2, int a3, __int64 a4)
 >> v20 = sub_1021EC(0, 'DGST', v82);
 ```
 
-### Execute Replacement Script
+### 执行替换脚本
 
 ```bash
 export AVPBOOTER_BIN=/Users/qaq/Desktop/vphone-cli/VM/AVPBooter.vresearch1.bin
@@ -385,21 +381,21 @@ python3 patch_AVPBooter.vresearch1.bin.py
 [+] Patched binary written to /Users/qaq/Desktop/vphone-cli/VM/AVPBooter.vresearch1.patched.bin
 ```
 
-### Confirm Correct Boot
+### 确认正确启动
 
-Just execute `./boot_dfu.sh` above once again.
+就是把上面的 `./boot_dfu.sh` 再次执行一遍。
 
-## Build CFW
+## 构建 CFW
 
-This part is very tedious, be prepared with patience.
+这部分非常繁琐，准备好耐心吧。
 
-### Obtain Firmware Content
+### 获取固件内容
 
-Run it and confirm that the folder `iPhone17,3_26.1_23B85_Restore` **exists.**
+跑一下，确认文件夹 `iPhone17,3_26.1_23B85_Restore` 存在即可。
 
-### Patch Firmware
+### 修补固件
 
-The patch system of the entire repository involves **41+ modifications**, covering 7 major categories of components.
+整个仓库的 patch 体系涉及 41+ 处修改，覆盖 7 大类组件。
 
 ```bash
   1. AVPBooter — DGST validation bypass via text-search + epilogue walk
@@ -410,13 +406,13 @@ The patch system of the entire repository involves **41+ modifications**, coveri
   6. kernelcache — 25 fixed patches (APFS, MAC hooks, debugger, launch constraints)
 ```
 
-First you need to install some components
+首先你需要安装一些组件
 
 ```bash
 pip3 install keystone-engine capstone pyimg4
 ```
 
-Then
+然后
 
 ```bash
 ➜  vphone git:(main) ✗   python3 patch_scripts/patch_firmware.py ~/Desktop/vphone-cli/VM
@@ -508,39 +504,75 @@ Then
 ➜  vphone git:(main) ✗
 ```
 
-\
+## 刷入操作系统
 
-## Restore Modified Firmware to VM
+### 启动虚拟机
 
-After patching, we can use `idevicerestore` to restore the modified firmware to the virtual machine.
-
+```bash
+./.build/release/vphone-cli \
+    --rom ./VM/AVPBooter.vresearch1.bin \
+    --disk ./VM/Disk.img \
+    --nvram ./VM/nvram.bin \
+    --cpu 4 \
+    --memory 4096 \
+    --serial-log ./VM/serial.log \
+    --stop-on-panic \
+    --stop-on-fatal-error \
+    --sep-rom ./VM/AVPSEPBooter.vresearch1.bin \
+    --sep-storage ./VM/SEPStorage \
+    --no-graphics
 ```
+
+### 执行恢复
+
+恢复完成以后，虚拟机会启动到 kernel panic。此时按下 ctrl+c 终止虚拟机。
+
+```bash
 idevicerestore -e -y ./iPhone17,3_26.1_23B85_Restore
+
+launchd quiesce complete
+AppleSEPManager: Received Paging off notification
+AppleUSBDeviceMux::message - kMessageInterfaceWasDeActivated
+AppleUSBDeviceMux::reportStats: USB mux statistics:
+USB mux: 4117556 reads / 0 errors, 2628065 writes / 0 errors
+USB mux: 0 short packets, 0 dups
+asyncReadComplete:1829 USB read status = 0xe00002eb
+asyncReadComplete:1829 USB read status = 0xe00002eb
+apfs_log_op_with_proc:3297: md0s1 unmounting volume ramdisk, requested by: launchd (pid 1); parent: kernel_task (pid 0)
+apfs_vfsop_unmount:3209: md0s1 apfs_fx_defrag_stop_defrag failed w/22
+apfs_vfsop_unmount:3583: md0 nx_num_vols_mounted is 0
+is_system_shutting_down:961: System is shutting down - stop any apfs bg work.
+apfs: total mem allocated: 720 (0 mb);
+apfs_vfsop_unmount:3596: all done.  going home.  (numMountedAPFSVolumes 0)
+virtual void AppleSEPManager::systemWillShutdown(IOOptionBits): Received system will shut down notification
+
+ApplePSCI - system off
+[vphone] Guest stopped
 ```
 
-## Fix Boot
+## 修复启动
 
-After flashing the firmware, a series of modifications are still required to boot vphone.
+在刷入固件以后，依然需要进行一系列修改才能启动 vphone。
 
-### Boot to Ramdisk
+### 启动到内存磁盘
 
-Copy the following files from the software repository into the VM.
+拷贝软件仓库中的下列文件到 VM 内。
 
 - build_ramdisk.py
 - ramdisk_send.sh
 - ramdisk_input.tar.zst
 
-Boot into dfu mode, use `idevicerestore` to fetch `shsh`.
+启动到 dfu 模式，使用 `idevicerestore` 拉取 `shsh`。
 
 ```bash
 idevicerestore -e -y ./iPhone17,3_26.1_23B85_Restore -t
 
-# Generate and save the shsh compressed as gz to ./shsh
+# 生成并保存压缩为 gz 的 shsh 到 ./shsh
 ➜  VM file shsh/18302609918026364278-iPhone99,11-26.1.shsh
 gzip compressed data, original size modulo 2^32 5897
 ```
 
-Build Ramdisk
+构建内存磁盘
 
 ```bash
 ➜  VM python3 ./build_ramdisk.py
@@ -631,7 +663,7 @@ created: /Users/qaq/Desktop/vphone-cli/VM/ramdisk_builder_temp/ramdisk1.dmg
     txm.img4                                         166,876 bytes
 ```
 
-Send Ramdisk and Boot
+发送内存磁盘并启动
 
 ```bash
 ➜  VM ./ramdisk_send.sh
@@ -657,7 +689,7 @@ Send Ramdisk and Boot
 [+] Boot sequence complete. Device should be booting into ramdisk.
 ```
 
-Check `vphone-cli` output
+查看 `vphone-cli` 输出
 
 ```bash
 private>
@@ -693,7 +725,7 @@ SSHRD_Script by Nathan (verygenericname)
 Running server
 ```
 
-Connect to ssh service
+连接 ssh 服务
 
 ```bash
 ➜  VM iproxy 2222 22
@@ -701,21 +733,21 @@ Connect to ssh service
 Creating listening port 2222 for device port 22
 waiting for connection
 
-# Map port 22 of the machine across the usb to 2222 of the current computer
+# 将 usb 对面的机器的 22 端口映射到当前计算机的 2222 上
 ```
 
 ```bash
 ➜  VM ssh root@127.0.0.1 -p2222
 
-root@127.0.0.1's password: # Password is alpine
+root@127.0.0.1's password: # 密码为 alpine
 localhost:~ root# uname -a
 Darwin localhost 25.1.0 Darwin Kernel Version 25.1.0: Thu Oct 23 11:11:48 PDT 2025; root:xnu-12377.42.6~55/RELEASE_ARM64_VRESEARCH1 iPhone99,11
 localhost:~ root#
 ```
 
-### Patch Boot Disk
+### 修补启动磁盘
 
-First, you need to mount the disk
+首先需要对磁盘进行挂载
 
 ```bash
 ocalhost:~ root# mount_apfs -o rw /dev/disk1s1 /mnt1
@@ -734,10 +766,10 @@ Usage:
 	snaputil -r <snap> <vol>            (Revert to snapshot)
 	snaputil -s <snap> <vol> <mntpnt>   (Mount snapshot)
 	snaputil -o                         (Print original snapshot name)
-# This is a routine operation for older jailbreaks ()
+# 这是老版本越狱的常规操作（）
 ```
 
-Then some binary updates are required
+然后需要进行一些二进制的更新
 
 ```bash
 ➜  VM ./install_cfw.sh
@@ -814,7 +846,7 @@ Then some binary updates are required
 ➜  VM
 ```
 
-Then ssh into it and enter `halt`
+然后 ssh 上去输入 `halt`
 
 ```bash
 launchd quiesce complete
@@ -837,16 +869,16 @@ ApplePSCI - system off
 [vphone] Guest stopped
 ```
 
-## First Boot
+## 首次启动
 
-Congratulations, things are done.
+恭喜，事情已经办好了。
 
 ```bash
 ➜  vphone-cli ./boot.sh
 === Building vphone-cli ===
 [2/2] Compiling plugin GenerateDoccReference
 
-<Omitted>
+<省略>
 
 Using default cache paths
 Code: /System/Library/xpc/launchd.plist Sig: /System/Library/xpc/launchd.plist.sig
@@ -866,7 +898,7 @@ com.apple.xpc.launchd|2026-02-26 05:34:51.048686 <Notice>: Got first unlock unre
 bash-4.4#
 ```
 
-After entering bash, you need to initialize the shell environment.
+进入 bash 以后，需要初始化 shell 环境。
 
 ```bash
 export PATH='/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin:/usr/bin/X11:/usr/games:/iosbinpack64/usr/local/sbin:/iosbinpack64/usr/local/bin:/iosbinpack64/usr/sbin:/iosbinpack64/usr/bin:/iosbinpack64/sbin:/iosbinpack64/bin'
@@ -886,16 +918,16 @@ ApplePSCI - system off
 <...>
 ```
 
-To connect to the virtual machine, please use `iproxy` to forward 22222 and 5901.
+想要连接到虚拟机，请使用 `iproxy` 转发 22222 和 5901。
 
 ```bash
 iproxy 5901 5901
 iproxy 22222 22222
 ```
 
-## Appendix
+## 附录
 
-### Boot pcc vm
+### 启动 pcc vm
 
 ```bash
 pccvre release download --release 35622
@@ -965,7 +997,3 @@ a60aa294185a059:986
 7ab90c923dae682:1384
 ======== End of iBoot serial output. ========
 ```
-
-## Acknowledgements
-
-- [wh1te4ever/super-tart-vphone-writeup](https://github.com/wh1te4ever/super-tart-vphone-writeup)
