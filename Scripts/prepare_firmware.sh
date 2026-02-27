@@ -80,6 +80,9 @@ done
 
 cp ${CLOUDOS_DIR}/Firmware/*.im4p "$IPHONE_DIR/Firmware"/
 
+# ── Preserve original iPhone BuildManifest (install_cfw.sh reads Cryptex paths) ──
+cp "$IPHONE_DIR/BuildManifest.plist" "$IPHONE_DIR/BuildManifest-iPhone.plist"
+
 # ── Generate hybrid BuildManifest.plist & Restore.plist ───────────────
 echo "==> Generating hybrid plists ..."
 

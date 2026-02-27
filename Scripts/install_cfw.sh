@@ -141,8 +141,8 @@ mkdir -p "$TEMP_DIR"
 
 # ── Parse Cryptex paths from BuildManifest ─────────────────────
 echo ""
-echo "[*] Parsing BuildManifest for Cryptex paths..."
-CRYPTEX_PATHS=$(python3 "$SCRIPT_DIR/patch_cfw.py" cryptex-paths "$RESTORE_DIR/BuildManifest.plist")
+echo "[*] Parsing iPhone BuildManifest for Cryptex paths..."
+CRYPTEX_PATHS=$(python3 "$SCRIPT_DIR/patch_cfw.py" cryptex-paths "$RESTORE_DIR/BuildManifest-iPhone.plist")
 CRYPTEX_SYSOS=$(echo "$CRYPTEX_PATHS" | head -1)
 CRYPTEX_APPOS=$(echo "$CRYPTEX_PATHS" | tail -1)
 echo "  SystemOS: $CRYPTEX_SYSOS"
@@ -370,5 +370,5 @@ echo "[+] CFW installation complete!"
 echo "    Reboot the device for changes to take effect."
 echo "    After boot, SSH will be available on port 22222 (password: alpine)"
 
-ssh_cmd "halt"
+ssh_cmd "/sbin/halt" || true
 
