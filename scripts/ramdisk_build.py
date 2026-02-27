@@ -36,14 +36,14 @@ if _SCRIPT_DIR not in sys.path:
 from keystone import Ks, KS_ARCH_ARM64, KS_MODE_LITTLE_ENDIAN as KS_MODE_LE
 from pyimg4 import IM4P
 
-from patch_firmware import (
+from fw_patch import (
     load_firmware,
     _save_im4p_with_payp,
     patch_txm,
     find_restore_dir,
     find_file,
 )
-from iboot_patcher import IBootPatcher
+from patchers.iboot import IBootPatcher
 
 # ══════════════════════════════════════════════════════════════════
 # ARM64 assembler
@@ -115,7 +115,7 @@ def setup_input(vm_dir):
         return input_dir
 
     # Look for archive next to this script, then in vm_dir
-    for search_dir in (_SCRIPT_DIR, vm_dir):
+    for search_dir in (os.path.join(_SCRIPT_DIR, "resources"), _SCRIPT_DIR, vm_dir):
         archive = os.path.join(search_dir, INPUT_ARCHIVE)
         if os.path.isfile(archive):
             print(f"  Extracting {INPUT_ARCHIVE}...")

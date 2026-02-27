@@ -1,11 +1,11 @@
 #!/bin/zsh
-# create_venv.sh — Create a self-contained Python venv at project root.
+# setup_venv.sh — Create a self-contained Python venv at project root.
 #
 # Installs all dependencies including the keystone native library.
 # Requires: python3, clang, Homebrew keystone (brew install keystone)
 #
 # Usage:
-#   zsh Scripts/create_venv.sh
+#   make setup_venv
 #
 set -euo pipefail
 

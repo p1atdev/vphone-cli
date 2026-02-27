@@ -1,12 +1,12 @@
 #!/bin/bash
-# prepare_firmware.sh — Download/copy, merge, and generate hybrid restore firmware.
+# fw_prepare.sh — Download/copy, merge, and generate hybrid restore firmware.
 # Combines cloudOS boot chain with iPhone OS images for vresearch101.
 #
 # Accepts URLs or local file paths. Local paths are copied instead of downloaded.
 # All output goes to the current working directory.
 #
 # Usage:
-#   cd VM && ../Scripts/prepare_firmware.sh [iphone_source] [cloudos_source]
+#   make fw_prepare
 #
 # Environment variables (override positional args):
 #   IPHONE_SOURCE  — URL or local path to iPhone IPSW
@@ -80,20 +80,17 @@ done
 
 cp ${CLOUDOS_DIR}/Firmware/*.im4p "$IPHONE_DIR/Firmware"/
 
-# ── Preserve original iPhone BuildManifest (install_cfw.sh reads Cryptex paths) ──
+# ── Preserve original iPhone BuildManifest (cfw_install.sh reads Cryptex paths) ──
 cp "$IPHONE_DIR/BuildManifest.plist" "$IPHONE_DIR/BuildManifest-iPhone.plist"
 
 # ── Generate hybrid BuildManifest.plist & Restore.plist ───────────────
 echo "==> Generating hybrid plists ..."
 
-python3 "$SCRIPT_DIR/prepare_firmware_build_manifest.py" "$IPHONE_DIR" "$CLOUDOS_DIR"
+python3 "$SCRIPT_DIR/fw_manifest.py" "$IPHONE_DIR" "$CLOUDOS_DIR"
 
 # ── Cleanup (keep IPSWs, remove intermediate files) ──────────────────
 echo "==> Cleaning up ..."
 rm -rf "$CLOUDOS_DIR"
 
-# ── Let's call patch scripts ──────────────────
-echo "==> Patching iPhone restore firmware ..."
-"$SCRIPT_DIR/patch_firmware.py"
-
 echo "==> Done. Restore directory ready: $IPHONE_DIR/"
+echo "    Run 'make fw_patch' to patch boot-chain components."

@@ -14,7 +14,7 @@ let package = Package(
         // ObjC module: wraps private Virtualization.framework APIs
         .target(
             name: "VPhoneObjC",
-            path: "Sources/VPhoneObjC",
+            path: "sources/vphone-objc",
             publicHeadersPath: "include",
             linkerSettings: [
                 .linkedFramework("Virtualization"),
@@ -27,6 +27,7 @@ let package = Package(
                 "VPhoneObjC",
                 .product(name: "ArgumentParser", package: "swift-argument-parser"),
             ],
+            path: "sources/vphone-cli",
             swiftSettings: [
                 .unsafeFlags(["-parse-as-library"]),
             ],

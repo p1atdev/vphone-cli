@@ -7,38 +7,39 @@ CLI tool that boots virtual iPhones (PV=3) via Apple's Virtualization.framework,
 ## Architecture
 
 ```
-Sources/
-├── VPhoneObjC/           # ObjC bridge for private Virtualization.framework APIs
+Makefile                          # Single entry point — run `make help`
+
+sources/
+├── vphone-objc/                  # ObjC bridge for private Virtualization.framework APIs
 │   ├── include/VPhoneObjC.h
 │   └── VPhoneObjC.m
-└── vphone-cli/           # Swift executable
-    ├── VPhoneCLI.swift          # Entry point, ArgumentParser command
-    ├── VPhoneVM.swift           # VM configuration and lifecycle
-    ├── VPhoneHardwareModel.swift # PV=3 hardware model creation
-    └── VPhoneVMWindow.swift     # AppKit window + touch input translation
+└── vphone-cli/                   # Swift executable
+    ├── VPhoneCLI.swift
+    ├── VPhoneVM.swift
+    ├── VPhoneHardwareModel.swift
+    └── VPhoneVMWindow.swift
 
-Scripts/
-├── prepare_firmware.sh               # Downloads IPSWs, merges cloudOS into iPhone
-├── prepare_firmware_build_manifest.py # Generates hybrid BuildManifest.plist & Restore.plist
-├── patch_firmware.py                 # Patches 6 boot-chain components (41+ modifications)
-├── iboot_patcher.py                  # Dynamic iBoot patcher (iBSS/iBEC/LLB), string-anchored
-├── txm_patcher.py                    # Dynamic TXM patcher, trustcache hash lookup bypass
-├── kernel_patcher.py                 # Dynamic kernel patcher (25 patches, string-anchored)
-├── build_ramdisk.py                  # Builds SSH ramdisk with trustcache
-├── ramdisk_send.sh                   # Sends ramdisk to device via irecovery
-├── install_cfw.sh                    # Installs custom firmware to VM disk
-├── patch_cfw.py                      # Patches individual CFW binaries
-├── create_venv.sh                    # Creates Python venv with native keystone dylib
-└── compile_all_libimobiledevice_deps.sh  # Builds libimobiledevice toolchain from source
+scripts/
+├── patchers/                     # Python patcher package
+│   ├── iboot.py                  # Dynamic iBoot patcher (iBSS/iBEC/LLB)
+│   ├── kernel.py                 # Dynamic kernel patcher (25 patches)
+│   ├── txm.py                    # Dynamic TXM patcher
+│   └── cfw.py                    # CFW binary patcher
+├── resources/                    # Resource archives
+│   ├── cfw_input.tar.zst
+│   └── ramdisk_input.tar.zst
+├── fw_prepare.sh                 # Downloads IPSWs, merges cloudOS into iPhone
+├── fw_manifest.py                # Generates hybrid BuildManifest.plist & Restore.plist
+├── fw_patch.py                   # Patches 6 boot-chain components (41+ modifications)
+├── ramdisk_build.py              # Builds SSH ramdisk with trustcache
+├── ramdisk_send.sh               # Sends ramdisk to device via irecovery
+├── cfw_install.sh                # Installs custom firmware to VM disk
+├── vm_create.sh                  # Creates VM directory (disk, SEP storage, ROMs)
+├── setup_venv.sh                 # Creates Python venv with native keystone dylib
+└── setup_libimobiledevice.sh     # Builds libimobiledevice toolchain from source
 
-Root scripts:
-├── build_and_sign.sh     # Build Swift binary + sign with private entitlements
-├── create_vm.sh          # Create VM directory (disk, SEP storage, ROMs)
-├── boot.sh               # Boot VM (headless)
-└── boot_dfu.sh           # Boot VM in DFU mode
-
-Research/                 # Research notes and verification reports
-researchs/                # Component analysis and architecture docs
+Research/                         # Research notes and verification reports
+researchs/                        # Component analysis and architecture docs
 ```
 
 ### Key Patterns
@@ -58,19 +59,19 @@ The firmware is a **PCC/iPhone hybrid** — PCC boot infrastructure wrapping iPh
 ### Pipeline Stages
 
 ```
-1. prepare_firmware.sh      Download iPhone + cloudOS IPSWs, merge, generate hybrid plists
+1. make fw_prepare          Download iPhone + cloudOS IPSWs, merge, generate hybrid plists
         ↓
-2. patch_firmware.py        Patch 6 boot-chain components for signature bypass + debug
+2. make fw_patch            Patch 6 boot-chain components for signature bypass + debug
         ↓
-3. build_ramdisk.py         Build SSH ramdisk from SHSH blob, inject tools, sign with IM4M
+3. make ramdisk_build       Build SSH ramdisk from SHSH blob, inject tools, sign with IM4M
         ↓
-4. create_vm.sh             Create VM directory (sparse disk, SEP storage, copy ROMs)
+4. make vm_new              Create VM directory (sparse disk, SEP storage, copy ROMs)
         ↓
-5. boot_dfu.sh              Boot VM in DFU mode
+5. make boot_dfu            Boot VM in DFU mode
         ↓
-6. ramdisk_send.sh          Load boot chain + ramdisk via irecovery
+6. make ramdisk_send        Load boot chain + ramdisk via irecovery
         ↓
-7. install_cfw.sh           Mount Cryptex, patch userland, install jailbreak tools
+7. make cfw_install         Mount Cryptex, patch userland, install jailbreak tools
 ```
 
 ### Component Origins
@@ -79,7 +80,7 @@ The firmware merges two Apple IPSWs:
 - **iPhone IPSW:** `iPhone17,3_26.1_23B85_Restore.ipsw` (d47ap)
 - **cloudOS IPSW:** PCC vresearch101ap IPSW (CDN hash URL)
 
-`prepare_firmware.sh` extracts both, then copies cloudOS boot chain into the
+`fw_prepare.sh` extracts both, then copies cloudOS boot chain into the
 iPhone restore directory (`kernelcache.*`, `Firmware/{agx,all_flash,ane,dfu,pmp}/*`,
 `Firmware/*.im4p`). The cloudOS extract is deleted after merge.
 
@@ -98,7 +99,7 @@ iPhone restore directory (`kernelcache.*`, `Firmware/{agx,all_flash,ane,dfu,pmp}
 | KernelCache | `kernelcache.release.vphone600` | Yes (25) | APFS, MAC, debugger, launch constraints, etc. |
 | GPU/ANE/PMP | `Firmware/{agx,ane,pmp}/*` | No | — |
 
-> TXM filename says "iphoneos" but is copied from cloudOS IPSW (`prepare_firmware.sh` line 81).
+> TXM filename says "iphoneos" but is copied from cloudOS IPSW (`fw_prepare.sh` line 81).
 
 #### OS / Filesystem — from iPhone (iPhone17,3)
 
@@ -110,11 +111,11 @@ iPhone restore directory (`kernelcache.*`, `Firmware/{agx,all_flash,ane,dfu,pmp}
 | Ap,SystemVolumeCanonicalMetadata | System volume metadata |
 
 > Cryptex1 components (SystemOS/AppOS DMGs) are **not** included in the BuildManifest.
-> They are only needed by `install_cfw.sh` which reads paths from the original iPhone manifest separately.
+> They are only needed by `cfw_install.sh` which reads paths from the original iPhone manifest separately.
 
 ### Build Identity
 
-`prepare_firmware_build_manifest.py` generates a **single** DFU erase-install identity (20 components).
+`fw_manifest.py` generates a **single** DFU erase-install identity (20 components).
 The VM always boots via DFU restore, so only one identity is needed.
 
 | Variant | Boot Chain | Ramdisk |
@@ -126,18 +127,18 @@ idevicerestore selects this identity by partial-matching `Info.Variant` against
 
 ### Patched Components Summary
 
-**Boot chain patches** (`patch_firmware.py`) — all 6 targets from **PCC**:
+**Boot chain patches** (`fw_patch.py`) — all 6 targets from **PCC**:
 
 | Component | Patches | Technique |
 |-----------|---------|-----------|
 | AVPBooter | 1 | `mov x0, #0` (DGST bypass) |
-| iBSS | 2 | Dynamic via `iboot_patcher.py` (string anchors, instruction patterns) |
-| iBEC | 3 | Dynamic via `iboot_patcher.py` (string anchors, instruction patterns) |
-| LLB | 6 | Dynamic via `iboot_patcher.py` (string anchors, instruction patterns) |
-| TXM | 1 | Dynamic via `txm_patcher.py` (trustcache hash lookup bypass) |
-| KernelCache | 25 | Dynamic via `kernel_patcher.py` (string anchors, ADRP+ADD xrefs, BL frequency) |
+| iBSS | 2 | Dynamic via `patchers/iboot.py` (string anchors, instruction patterns) |
+| iBEC | 3 | Dynamic via `patchers/iboot.py` (string anchors, instruction patterns) |
+| LLB | 6 | Dynamic via `patchers/iboot.py` (string anchors, instruction patterns) |
+| TXM | 1 | Dynamic via `patchers/txm.py` (trustcache hash lookup bypass) |
+| KernelCache | 25 | Dynamic via `patchers/kernel.py` (string anchors, ADRP+ADD xrefs, BL frequency) |
 
-**CFW patches** (`patch_cfw.py` / `install_cfw.sh`) — all 4 targets from **iPhone** Cryptex SystemOS:
+**CFW patches** (`patchers/cfw.py` / `cfw_install.sh`) — all 4 targets from **iPhone** Cryptex SystemOS:
 
 | Binary | Technique | Purpose |
 |--------|-----------|---------|
@@ -159,14 +160,14 @@ AVPBooter (ROM, PCC)
               → iOS userland (iPhone, CFW-patched)
 ```
 
-### Ramdisk Build (`build_ramdisk.py`)
+### Ramdisk Build (`ramdisk_build.py`)
 
 1. Extract IM4M from SHSH blob
 2. Process 8 components: iBSS, iBEC, SPTM, DeviceTree, SEP, TXM, KernelCache, Ramdisk+Trustcache
-3. For ramdisk: extract base DMG → create 254 MB APFS volume → mount → inject SSH tools from `ramdisk_input.tar.zst` → re-sign Mach-Os with ldid + signcert.p12 → build trustcache
+3. For ramdisk: extract base DMG → create 254 MB APFS volume → mount → inject SSH tools from `resources/ramdisk_input.tar.zst` → re-sign Mach-Os with ldid + signcert.p12 → build trustcache
 4. Sign all components with IM4M manifest → output to `Ramdisk/` directory as IMG4 files
 
-### CFW Installation (`install_cfw.sh`)
+### CFW Installation (`cfw_install.sh`)
 
 7 phases, safe to re-run (idempotent):
 1. Decrypt/mount Cryptex SystemOS and AppOS DMGs (`ipsw` + `aea`)
@@ -199,15 +200,15 @@ AVPBooter (ROM, PCC)
 
 - Use `zsh` with `set -euo pipefail`.
 - Scripts resolve their own directory via `${0:a:h}` or `$(cd "$(dirname "$0")" && pwd)`.
-- Build script (`build_and_sign.sh`) handles both compilation and entitlement signing.
+- Build uses `make build` which handles compilation and entitlement signing.
 
 ### Python Scripts
 
 - Firmware patching uses `capstone` (disassembly), `keystone-engine` (assembly), and `pyimg4` (IM4P handling).
-- `kernel_patcher.py` uses dynamic pattern finding (string anchors, ADRP+ADD xrefs, BL frequency analysis) — nothing is hardcoded to specific offsets.
+- `patchers/kernel.py` uses dynamic pattern finding (string anchors, ADRP+ADD xrefs, BL frequency analysis) — nothing is hardcoded to specific offsets.
 - Each patch is logged with offset and before/after state.
 - Scripts operate on a VM directory and auto-discover the `*Restore*` subdirectory.
-- **Environment:** Use the project venv (`source .venv/bin/activate`). Create with `zsh Scripts/create_venv.sh`. All deps in `requirements.txt`: `capstone`, `keystone-engine`, `pyimg4`.
+- **Environment:** Use the project venv (`source .venv/bin/activate`). Create with `make setup_venv`. All deps in `requirements.txt`: `capstone`, `keystone-engine`, `pyimg4`.
 
 ## Build & Sign
 
@@ -219,9 +220,9 @@ The binary requires private entitlements to use PV=3 virtualization:
 - `com.apple.vm.networking`
 - `com.apple.security.get-task-allow`
 
-Always use `build_and_sign.sh` — never `swift build` alone, as the unsigned binary will fail at runtime.
+Always use `make build` — never `swift build` alone, as the unsigned binary will fail at runtime.
 
-## VM Creation (`create_vm.sh`)
+## VM Creation (`make vm_new`)
 
 Creates a VM directory with:
 - Sparse disk image (default 64 GB)
@@ -229,7 +230,7 @@ Creates a VM directory with:
 - AVPBooter + AVPSEPBooter ROMs (copied from `/System/Library/Frameworks/Virtualization.framework/`)
 - NVRAM and machineIdentifier auto-created on first boot
 
-CLI flags: `--dir`, `--disk-size`, `--rom`, `--seprom`.
+Override defaults: `make vm_new VM_DIR=myvm DISK_SIZE=32`.
 
 ## Design System
 

@@ -11,7 +11,7 @@ RAMDISK_DIR="${1:-Ramdisk}"
 
 if [ ! -d "$RAMDISK_DIR" ]; then
     echo "[-] Ramdisk directory not found: $RAMDISK_DIR"
-    echo "    Run build_ramdisk.py first."
+    echo "    Run 'make ramdisk_build' first."
     exit 1
 fi
 

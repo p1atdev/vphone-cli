@@ -1,5 +1,5 @@
 #!/bin/zsh
-# create_vm.sh — Create a new vphone VM directory with all required files.
+# vm_create.sh — Create a new vphone VM directory with all required files.
 #
 # Mirrors the vrevm VM creation process:
 #   1. Create VM directory structure
@@ -10,15 +10,13 @@
 # machineIdentifier and NVRAM are auto-created on first boot by vphone-cli.
 #
 # Usage:
-#   ./create_vm.sh                          # Create VM/ with framework ROMs
-#   ./create_vm.sh --dir MyVM               # Custom directory name
-#   ./create_vm.sh --disk-size 32           # 32 GB disk
-#   ./create_vm.sh --rom /path/to/avpboot   # Custom AVPBooter ROM
-#   ./create_vm.sh --seprom /path/to/sepboot # Custom AVPSEPBooter ROM
+#   make vm_new                     # Create VM/ with framework ROMs
+#   make vm_new VM_DIR=MyVM         # Custom directory name
+#   make vm_new DISK_SIZE=32        # 32 GB disk
 set -euo pipefail
 
 # --- Defaults ---
-VM_DIR="VM"
+VM_DIR="vm"
 DISK_SIZE_GB=64
 SEP_STORAGE_SIZE=$((512 * 1024))  # 512 KB (same as vrevm)
 
@@ -133,7 +131,7 @@ echo "Contents:"
 ls -lh "${VM_DIR}/"
 echo ""
 echo "Next steps:"
-echo "  1. Prepare firmware:  cd ${VM_DIR} && ../Scripts/prepare_firmware.sh"
-echo "  2. Patch firmware:    source ../.venv/bin/activate && python ../Scripts/patch_firmware.py"
-echo "  3. Boot DFU:          cd ${VM_DIR} && ../boot_dfu.sh"
-echo "  4. Boot normal:       cd ${VM_DIR} && ../boot.sh"
+echo "  1. Prepare firmware:  make fw_prepare"
+echo "  2. Patch firmware:    make fw_patch"
+echo "  3. Boot DFU:          make boot_dfu"
+echo "  4. Boot normal:       make boot"

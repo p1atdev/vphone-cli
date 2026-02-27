@@ -29,9 +29,9 @@ from capstone import Cs, CS_ARCH_ARM64, CS_MODE_LITTLE_ENDIAN
 from keystone import Ks, KS_ARCH_ARM64, KS_MODE_LITTLE_ENDIAN as KS_MODE_LE
 from pyimg4 import IM4P
 
-from kernel_patcher import KernelPatcher
-from iboot_patcher import IBootPatcher
-from txm_patcher import TXMPatcher
+from patchers.kernel import KernelPatcher
+from patchers.iboot import IBootPatcher
+from patchers.txm import TXMPatcher
 
 # ══════════════════════════════════════════════════════════════════
 # Assembler helpers (for AVPBooter only — iBoot/TXM/kernel are

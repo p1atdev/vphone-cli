@@ -1,5 +1,5 @@
 #!/bin/zsh
-# install_cfw.sh — Install CFW modifications on vphone via SSH ramdisk.
+# cfw_install.sh — Install CFW modifications on vphone via SSH ramdisk.
 #
 # Installs Cryptexes, patches system binaries, installs jailbreak tools
 # and configures LaunchDaemons for persistent SSH/VNC access.
@@ -8,13 +8,13 @@
 # keeps decrypted Cryptex DMGs cached, handles already-mounted filesystems.
 #
 # Prerequisites:
-#   - Device booted into SSH ramdisk (ramdisk_send.sh)
+#   - Device booted into SSH ramdisk (make ramdisk_send)
 #   - `ipsw` tool installed (brew install blacktop/tap/ipsw)
 #   - `aea` tool available (macOS 12+)
-#   - Python: pip install capstone keystone-engine
-#   - cfw_input/ or cfw_input.tar.zst present
+#   - Python: make setup_venv && source .venv/bin/activate
+#   - cfw_input/ or resources/cfw_input.tar.zst present
 #
-# Usage: ./install_cfw.sh [vm_directory]
+# Usage: make cfw_install
 set -euo pipefail
 
 VM_DIR="${1:-.}"
@@ -96,7 +96,7 @@ find_restore_dir() {
 setup_cfw_input() {
     [[ -d "$VM_DIR/$CFW_INPUT" ]] && return
     local archive
-    for search_dir in "$SCRIPT_DIR" "$VM_DIR"; do
+    for search_dir in "$SCRIPT_DIR/resources" "$SCRIPT_DIR" "$VM_DIR"; do
         archive="$search_dir/$CFW_ARCHIVE"
         if [[ -f "$archive" ]]; then
             echo "  Extracting $CFW_ARCHIVE..."
@@ -126,7 +126,7 @@ trap cleanup_on_exit EXIT
 # ════════════════════════════════════════════════════════════════
 # Main
 # ════════════════════════════════════════════════════════════════
-echo "[*] install_cfw.sh — Installing CFW on vphone..."
+echo "[*] cfw_install.sh — Installing CFW on vphone..."
 
 check_prereqs
 
@@ -142,7 +142,7 @@ mkdir -p "$TEMP_DIR"
 # ── Parse Cryptex paths from BuildManifest ─────────────────────
 echo ""
 echo "[*] Parsing iPhone BuildManifest for Cryptex paths..."
-CRYPTEX_PATHS=$(python3 "$SCRIPT_DIR/patch_cfw.py" cryptex-paths "$RESTORE_DIR/BuildManifest-iPhone.plist")
+CRYPTEX_PATHS=$(python3 "$SCRIPT_DIR/patchers/cfw.py" cryptex-paths "$RESTORE_DIR/BuildManifest-iPhone.plist")
 CRYPTEX_SYSOS=$(echo "$CRYPTEX_PATHS" | head -1)
 CRYPTEX_APPOS=$(echo "$CRYPTEX_PATHS" | tail -1)
 echo "  SystemOS: $CRYPTEX_SYSOS"
@@ -246,7 +246,7 @@ if ! remote_file_exists "/mnt1/usr/libexec/seputil.bak"; then
 fi
 
 scp_from "/mnt1/usr/libexec/seputil.bak" "$TEMP_DIR/seputil"
-python3 "$SCRIPT_DIR/patch_cfw.py" patch-seputil "$TEMP_DIR/seputil"
+python3 "$SCRIPT_DIR/patchers/cfw.py" patch-seputil "$TEMP_DIR/seputil"
 ldid_sign "$TEMP_DIR/seputil" "com.apple.seputil"
 scp_to "$TEMP_DIR/seputil" "/mnt1/usr/libexec/seputil"
 ssh_cmd "/bin/chmod 0755 /mnt1/usr/libexec/seputil"
@@ -302,7 +302,7 @@ if ! remote_file_exists "/mnt1/usr/libexec/launchd_cache_loader.bak"; then
 fi
 
 scp_from "/mnt1/usr/libexec/launchd_cache_loader.bak" "$TEMP_DIR/launchd_cache_loader"
-python3 "$SCRIPT_DIR/patch_cfw.py" patch-launchd-cache-loader "$TEMP_DIR/launchd_cache_loader"
+python3 "$SCRIPT_DIR/patchers/cfw.py" patch-launchd-cache-loader "$TEMP_DIR/launchd_cache_loader"
 ldid_sign "$TEMP_DIR/launchd_cache_loader" "com.apple.launchd_cache_loader"
 scp_to "$TEMP_DIR/launchd_cache_loader" "/mnt1/usr/libexec/launchd_cache_loader"
 ssh_cmd "/bin/chmod 0755 /mnt1/usr/libexec/launchd_cache_loader"
@@ -320,7 +320,7 @@ if ! remote_file_exists "/mnt1/usr/libexec/mobileactivationd.bak"; then
 fi
 
 scp_from "/mnt1/usr/libexec/mobileactivationd.bak" "$TEMP_DIR/mobileactivationd"
-python3 "$SCRIPT_DIR/patch_cfw.py" patch-mobileactivationd "$TEMP_DIR/mobileactivationd"
+python3 "$SCRIPT_DIR/patchers/cfw.py" patch-mobileactivationd "$TEMP_DIR/mobileactivationd"
 ldid_sign "$TEMP_DIR/mobileactivationd"
 scp_to "$TEMP_DIR/mobileactivationd" "/mnt1/usr/libexec/mobileactivationd"
 ssh_cmd "/bin/chmod 0755 /mnt1/usr/libexec/mobileactivationd"
@@ -345,7 +345,7 @@ if ! remote_file_exists "/mnt1/System/Library/xpc/launchd.plist.bak"; then
 fi
 
 scp_from "/mnt1/System/Library/xpc/launchd.plist.bak" "$TEMP_DIR/launchd.plist"
-python3 "$SCRIPT_DIR/patch_cfw.py" inject-daemons "$TEMP_DIR/launchd.plist" "$INPUT_DIR/jb/LaunchDaemons"
+python3 "$SCRIPT_DIR/patchers/cfw.py" inject-daemons "$TEMP_DIR/launchd.plist" "$INPUT_DIR/jb/LaunchDaemons"
 scp_to "$TEMP_DIR/launchd.plist" "/mnt1/System/Library/xpc/launchd.plist"
 ssh_cmd "/bin/chmod 0644 /mnt1/System/Library/xpc/launchd.plist"
 
