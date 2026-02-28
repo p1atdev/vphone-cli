@@ -135,11 +135,21 @@ boot_dfu: build
 
 .PHONY: fw_prepare fw_patch
 
-fw_prepare:
-	cd $(VM_DIR) && bash "$(CURDIR)/$(SCRIPTS)/fw_prepare.sh"
+fw_prepare: build
+	cd $(VM_DIR) && bash "$(CURDIR)/$(SCRIPTS)/fw_prepare_swift.sh"
 
-fw_patch:
-	cd $(VM_DIR) && $(PYTHON) "$(CURDIR)/$(SCRIPTS)/fw_patch.py" .
+# fw_patch:
+# 	cd $(VM_DIR) && $(PYTHON) "$(CURDIR)/$(SCRIPTS)/fw_patch.py" .
+
+fw_patch: build
+	@echo "=== Patching firmware components (Swift) ==="
+	cd $(VM_DIR) && "$(CURDIR)/$(BINARY)" patch avpbooter AVPBooter.vresearch1.bin
+	cd $(VM_DIR) && "$(CURDIR)/$(BINARY)" patch ibss iPhone*_Restore/Firmware/dfu/iBSS.vresearch101.RELEASE.im4p
+	cd $(VM_DIR) && "$(CURDIR)/$(BINARY)" patch ibec iPhone*_Restore/Firmware/dfu/iBEC.vresearch101.RELEASE.im4p
+	cd $(VM_DIR) && "$(CURDIR)/$(BINARY)" patch llb iPhone*_Restore/Firmware/all_flash/LLB.vresearch101.RELEASE.im4p
+	cd $(VM_DIR) && "$(CURDIR)/$(BINARY)" patch txm iPhone*_Restore/Firmware/txm.iphoneos.research.im4p
+	cd $(VM_DIR) && "$(CURDIR)/$(BINARY)" patch kernel iPhone*_Restore/kernelcache.research.vphone600
+	@echo "=== All components patched successfully ==="
 
 # ═══════════════════════════════════════════════════════════════════
 # Restore
