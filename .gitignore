@@ -308,5 +308,7 @@ __marimo__/
 # Streamlit
 .streamlit/secrets.toml
 *.resolved
-/VM
+
+/VM/*
+!/VM/.gitkeep
 .limd/

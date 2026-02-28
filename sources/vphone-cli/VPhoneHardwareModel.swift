@@ -1,6 +1,6 @@
 import Foundation
-import Virtualization
 import VPhoneObjC
+import Virtualization
 
 /// Wrapper around the ObjC private API call to create a PV=3 hardware model.
 ///

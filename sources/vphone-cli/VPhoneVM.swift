@@ -1,6 +1,6 @@
 import Foundation
-import Virtualization
 import VPhoneObjC
+import Virtualization
 
 /// Minimal VM for booting a vphone (virtual iPhone) in DFU mode.
 class VPhoneVM: NSObject, VZVirtualMachineDelegate {
@@ -35,7 +35,8 @@ class VPhoneVM: NSObject, VZVirtualMachineDelegate {
         let machineIDPath = options.nvramURL.deletingLastPathComponent()
             .appendingPathComponent("machineIdentifier.bin")
         if let savedData = try? Data(contentsOf: machineIDPath),
-           let savedID = VZMacMachineIdentifier(dataRepresentation: savedData) {
+            let savedID = VZMacMachineIdentifier(dataRepresentation: savedData)
+        {
             platform.machineIdentifier = savedID
             print("[vphone] Loaded machineIdentifier (ECID stable)")
         } else {
@@ -70,19 +71,23 @@ class VPhoneVM: NSObject, VZVirtualMachineDelegate {
         let config = VZVirtualMachineConfiguration()
         config.bootLoader = bootloader
         config.platform = platform
-        config.cpuCount = max(options.cpuCount, VZVirtualMachineConfiguration.minimumAllowedCPUCount)
-        config.memorySize = max(options.memorySize, VZVirtualMachineConfiguration.minimumAllowedMemorySize)
+        config.cpuCount = max(
+            options.cpuCount, VZVirtualMachineConfiguration.minimumAllowedCPUCount)
+        config.memorySize = max(
+            options.memorySize, VZVirtualMachineConfiguration.minimumAllowedMemorySize)
 
         // Display (vresearch101: 1290x2796 @ 460 PPI — matches vrevm)
         let gfx = VZMacGraphicsDeviceConfiguration()
         gfx.displays = [
-            VZMacGraphicsDisplayConfiguration(widthInPixels: 1290, heightInPixels: 2796, pixelsPerInch: 460),
+            VZMacGraphicsDisplayConfiguration(
+                widthInPixels: 1290, heightInPixels: 2796, pixelsPerInch: 460)
         ]
         config.graphicsDevices = [gfx]
 
         // Storage
         if FileManager.default.fileExists(atPath: options.diskURL.path) {
-            let attachment = try VZDiskImageStorageDeviceAttachment(url: options.diskURL, readOnly: false)
+            let attachment = try VZDiskImageStorageDeviceAttachment(
+                url: options.diskURL, readOnly: false)
             config.storageDevices = [VZVirtioBlockDeviceConfiguration(attachment: attachment)]
         }
 
@@ -176,9 +181,10 @@ class VPhoneVM: NSObject, VZVirtualMachineDelegate {
         done = true
     }
 
-    func virtualMachine(_: VZVirtualMachine, networkDevice _: VZNetworkDevice,
-                        attachmentWasDisconnectedWithError error: Error)
-    {
+    func virtualMachine(
+        _: VZVirtualMachine, networkDevice _: VZNetworkDevice,
+        attachmentWasDisconnectedWithError error: Error
+    ) {
         print("[vphone] Network error: \(error)")
     }
 
@@ -205,7 +211,7 @@ enum VPhoneError: Error, CustomStringConvertible {
             com.apple.private.virtualization.security-research
               3. SIP/AMFI disabled
             """
-        case let .romNotFound(p):
+        case .romNotFound(let p):
             "ROM not found: \(p)"
         }
     }

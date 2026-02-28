@@ -1,0 +1,24 @@
+{
+    "configurations": [
+        {
+            "type": "swift",
+            "request": "launch",
+            "args": [],
+            "cwd": "${workspaceFolder:vphone-cli}",
+            "name": "Debug vphone-cli",
+            "target": "vphone-cli",
+            "configuration": "debug",
+            "preLaunchTask": "swift: Build Debug vphone-cli"
+        },
+        {
+            "type": "swift",
+            "request": "launch",
+            "args": [],
+            "cwd": "${workspaceFolder:vphone-cli}",
+            "name": "Release vphone-cli",
+            "target": "vphone-cli",
+            "configuration": "release",
+            "preLaunchTask": "swift: Build Release vphone-cli"
+        }
+    ]
+}
