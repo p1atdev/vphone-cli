@@ -79,7 +79,8 @@ struct VPhoneCLI: ParsableCommand {
         }
     }
 
-    struct Patch: AsyncParsableCommand {
+    // https://forums.swift.org/t/asyncparsablecommand-doesnt-work/71300/2
+    struct Patch: ParsableCommand {
         static let configuration = CommandConfiguration(
             commandName: "patch",
             abstract: "Patch firmware components (boot chain / kernel)"
@@ -94,7 +95,7 @@ struct VPhoneCLI: ParsableCommand {
         @Option(help: "Output patched file path (defaults to overwriting input)")
         var output: String?
 
-        func run() async throws {
+        func run() throws {
             print("=== vphone-patcher ===")
             print("Component: \(component)")
             print("Input    : \(input)")
@@ -107,7 +108,7 @@ struct VPhoneCLI: ParsableCommand {
         }
     }
 
-    struct GenManifest: AsyncParsableCommand {
+    struct GenManifest: ParsableCommand {
         static let configuration = CommandConfiguration(
             commandName: "gen-manifest",
             abstract: "Generate hybrid BuildManifest.plist and Restore.plist"
@@ -119,7 +120,7 @@ struct VPhoneCLI: ParsableCommand {
         @Argument(help: "Path to cloudOS restore directory")
         var cloudosDir: String
 
-        func run() async throws {
+        func run() throws {
             print("=== vphone-manifest ===")
             print("iPhone Dir  : \(iphoneDir)")
             print("cloudOS Dir : \(cloudosDir)")

@@ -81,8 +81,13 @@ extract() {
     chmod -R u+w "$dir"
 }
 
-extract "$IPHONE_IPSW" "$IPHONE_DIR"
-extract "$CLOUDOS_IPSW" "$CLOUDOS_DIR"
+# if SKIP_EXTRACT is set, skip extraction
+if [[ -z "${SKIP_EXTRACT:-}" ]]; then
+    extract "$IPHONE_IPSW" "$IPHONE_DIR"
+    extract "$CLOUDOS_IPSW" "$CLOUDOS_DIR"
+else
+    echo "==> Skipping extraction (SKIP_EXTRACT is set)."
+fi
 
 # ── Merge cloudOS firmware into iPhone restore directory ──────────────
 echo "==> Importing cloudOS firmware components ..."
@@ -105,12 +110,14 @@ cp "$IPHONE_DIR/BuildManifest.plist" "$IPHONE_DIR/BuildManifest-iPhone.plist"
 # ── Generate hybrid BuildManifest.plist & Restore.plist ───────────────
 echo "==> Generating hybrid plists ..."
 
+echo $VPHONE_CLI
+
 "$VPHONE_CLI" gen-manifest "$IPHONE_DIR" "$CLOUDOS_DIR"
 
 # ── Cleanup (keep IPSWs, remove intermediate files) ──────────────────
 
 # echo "==> Cleaning up ..."
-rm -rf "$CLOUDOS_DIR"
+# rm -rf "$CLOUDOS_DIR"
 
 echo "==> Done. Restore directory ready: $IPHONE_DIR/"
 echo "    Run 'make fw_patch' to patch boot-chain components."
