@@ -6,6 +6,7 @@ class VPhoneAppDelegate: NSObject, NSApplicationDelegate {
     private let cli: VPhoneCLI.Boot
     private var vm: VPhoneVM?
     private var windowController: VPhoneWindowController?
+    private var menuController: VPhoneMenuController?
     private var sigintSource: DispatchSourceSignal?
 
     init(config: VPhoneCLI.Boot) {
@@ -92,6 +93,7 @@ class VPhoneAppDelegate: NSObject, NSApplicationDelegate {
                 screenScale: cli.screenScale
             )
             windowController = wc
+            menuController = VPhoneMenuController(vm: vm.virtualMachine)
         }
     }
 
