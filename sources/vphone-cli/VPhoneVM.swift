@@ -1,6 +1,5 @@
 import Dynamic
 import Foundation
-import VPhoneObjC
 import Virtualization
 
 /// Minimal VM for booting a vphone (virtual iPhone) in DFU mode.

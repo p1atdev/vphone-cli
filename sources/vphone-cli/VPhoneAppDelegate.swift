@@ -3,13 +3,13 @@ import Foundation
 import Virtualization
 
 class VPhoneAppDelegate: NSObject, NSApplicationDelegate {
-    private let cli: VPhoneCLI
+    private let cli: VPhoneCLI.Boot
     private var vm: VPhoneVM?
     private var windowController: VPhoneWindowController?
     private var sigintSource: DispatchSourceSignal?
 
-    init(cli: VPhoneCLI) {
-        self.cli = cli
+    init(config: VPhoneCLI.Boot) {
+        self.cli = config
         super.init()
     }
 
@@ -55,7 +55,9 @@ class VPhoneAppDelegate: NSObject, NSApplicationDelegate {
         print("MachID: \(cli.machineId)")
         print("CPU   : \(cli.cpu)")
         print("Memory: \(cli.memory) MB")
-        print("Screen: \(cli.screenWidth)x\(cli.screenHeight) @ \(cli.screenPpi) PPI (scale \(cli.screenScale)x)")
+        print(
+            "Screen: \(cli.screenWidth)x\(cli.screenHeight) @ \(cli.screenPpi) PPI (scale \(cli.screenScale)x)"
+        )
         print("SEP   : enabled")
         print("  storage: \(cli.sepStorage)")
         print("  rom    : \(cli.sepRom)")

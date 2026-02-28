@@ -23,7 +23,7 @@ struct VPhoneCLI: ParsableCommand {
     )
 
     struct Boot: AsyncParsableCommand {
-        static var configuration = CommandConfiguration(
+        static let configuration = CommandConfiguration(
             commandName: "boot",
             abstract: "Boot the virtual machine"
         )
@@ -80,7 +80,7 @@ struct VPhoneCLI: ParsableCommand {
     }
 
     struct Patch: AsyncParsableCommand {
-        static var configuration = CommandConfiguration(
+        static let configuration = CommandConfiguration(
             commandName: "patch",
             abstract: "Patch firmware components (boot chain / kernel)"
         )
@@ -108,7 +108,7 @@ struct VPhoneCLI: ParsableCommand {
     }
 
     struct GenManifest: AsyncParsableCommand {
-        static var configuration = CommandConfiguration(
+        static let configuration = CommandConfiguration(
             commandName: "gen-manifest",
             abstract: "Generate hybrid BuildManifest.plist and Restore.plist"
         )

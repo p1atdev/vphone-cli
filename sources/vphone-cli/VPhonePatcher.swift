@@ -135,9 +135,11 @@ struct MachO {
                 guard offset + Int(cmdsize) <= buffer.count else { break }
 
                 if cmd == 0x19 {  // LC_SEGMENT_64
-                    let segnameBytes = buffer.baseAddress!.advanced(by: offset + 8).assumingMemoryBound(to: UInt8.self)
+                    let segnameBytes = buffer.baseAddress!.advanced(by: offset + 8)
+                        .assumingMemoryBound(to: UInt8.self)
                     let segnameData = Data(bytes: segnameBytes, count: 16)
-                    let segname = String(data: segnameData.prefix(while: { $0 != 0 }), encoding: .utf8) ?? ""
+                    let segname =
+                        String(data: segnameData.prefix(while: { $0 != 0 }), encoding: .utf8) ?? ""
 
                     let vmaddr = buffer.load(fromByteOffset: offset + 24, as: UInt64.self)
                     let vmsize = buffer.load(fromByteOffset: offset + 32, as: UInt64.self)
@@ -153,16 +155,20 @@ struct MachO {
                     var sectOffset = offset + 72
                     for _ in 0..<nsects {
                         guard sectOffset + 80 <= buffer.count else { break }
-                        let snameBytes = buffer.baseAddress!.advanced(by: sectOffset).assumingMemoryBound(to: UInt8.self)
+                        let snameBytes = buffer.baseAddress!.advanced(by: sectOffset)
+                            .assumingMemoryBound(to: UInt8.self)
                         let snameData = Data(bytes: snameBytes, count: 16)
-                        let sname = String(data: snameData.prefix(while: { $0 != 0 }), encoding: .utf8) ?? ""
+                        let sname =
+                            String(data: snameData.prefix(while: { $0 != 0 }), encoding: .utf8)
+                            ?? ""
 
                         let saddr = buffer.load(fromByteOffset: sectOffset + 32, as: UInt64.self)
                         let ssize = buffer.load(fromByteOffset: sectOffset + 40, as: UInt64.self)
                         let soff = buffer.load(fromByteOffset: sectOffset + 48, as: UInt32.self)
 
                         sections["\(segname),\(sname)"] = Section(
-                            segname: segname, sectname: sname, vmaddr: saddr, size: ssize, offset: soff)
+                            segname: segname, sectname: sname, vmaddr: saddr, size: ssize,
+                            offset: soff)
                         sectOffset += 80
                     }
                 }
@@ -211,14 +217,14 @@ class AVPBooterPatcher: Patcher {
             for i in stride(from: 0, to: buffer.count - 4, by: 4) {
                 let insn = buffer.load(fromByteOffset: i, as: UInt32.self)
                 // movk w8, #0x4447, lsl #16 is 0x72a888e8 (LE: e8 88 a8 72)
-                if insn == 0x72A8_88E8 || insn == 0x72A8_88E1 { 
+                if insn == 0x72A8_88E8 || insn == 0x72A8_88E1 {
                     hitIdx = i
                     break
                 }
             }
-            
+
             guard let startIdx = hitIdx else { return }
-            
+
             var retIdx: Int? = nil
             for i in stride(from: startIdx, to: min(startIdx + 2048, buffer.count - 4), by: 4) {
                 let insn = buffer.load(fromByteOffset: i, as: UInt32.self)
@@ -227,13 +233,14 @@ class AVPBooterPatcher: Patcher {
                     break
                 }
             }
-            
+
             guard let endIdx = retIdx else { return }
-            
+
             for i in stride(from: endIdx - 4, to: max(endIdx - 128, 0), by: -4) {
                 let insn = buffer.load(fromByteOffset: i, as: UInt32.self)
                 if ARM64.isMovX0(insn) || (insn & 0xFFC0_001F) == 0x1A80_0000 {
-                    buffer.storeBytes(of: ARM64.mov_x0_0.littleEndian, toByteOffset: i, as: UInt32.self)
+                    buffer.storeBytes(
+                        of: ARM64.mov_x0_0.littleEndian, toByteOffset: i, as: UInt32.self)
                     if verbose { print("  [+] AVPBooter: Patched at 0x\(String(i, radix: 16))") }
                     patchCount += 1
                     break
@@ -259,32 +266,34 @@ class TXMPatcher: Patcher {
             var markerIdx: Int? = nil
             for i in stride(from: 0, to: buffer.count - 4, by: 4) {
                 let insn = buffer.load(fromByteOffset: i, as: UInt32.self)
-                if insn == 0x5284_88D3 { // mov w19, #0x2446
+                if insn == 0x5284_88D3 {  // mov w19, #0x2446
                     markerIdx = i
                     break
                 }
             }
-            
+
             guard let mIdx = markerIdx else { return }
-            
+
             var funcStart: Int? = nil
             for i in stride(from: mIdx & ~3, to: max(mIdx - 1024, 0), by: -4) {
                 let insn = buffer.load(fromByteOffset: i, as: UInt32.self)
-                if insn == 0xD503_233F { // pacibsp
+                if insn == 0xD503_233F {  // pacibsp
                     funcStart = i
                     break
                 }
             }
-            
+
             guard let start = funcStart else { return }
             for i in stride(from: start, to: min(start + 2048, buffer.count - 12), by: 4) {
                 let i0 = buffer.load(fromByteOffset: i, as: UInt32.self)
                 let i1 = buffer.load(fromByteOffset: i + 4, as: UInt32.self)
                 let i2 = buffer.load(fromByteOffset: i + 8, as: UInt32.self)
                 if i0 == 0x5280_0282 && ARM64.isBL(i1) && (i2 & 0xFF00_001F) == 0x3400_0000 {
-                    buffer.storeBytes(of: ARM64.mov_x0_0.littleEndian, toByteOffset: i + 4, as: UInt32.self)
+                    buffer.storeBytes(
+                        of: ARM64.mov_x0_0.littleEndian, toByteOffset: i + 4, as: UInt32.self)
                     if verbose {
-                        print("  [+] TXM: Patched trustcache bypass at 0x\(String(i + 4, radix: 16))")
+                        print(
+                            "  [+] TXM: Patched trustcache bypass at 0x\(String(i + 4, radix: 16))")
                     }
                     patchCount += 1
                     break
@@ -392,19 +401,24 @@ class IBootPatcher: Patcher {
                 let rd1 = i1 & 0x1F
                 let rn1 = (i1 >> 5) & 0x1F
                 if rd0 == 2 && rd1 == 2 && rn1 == 2 {
-                    let target = ARM64.decodeADRP(insn: i0, address: UInt64(i)) + UInt64(ARM64.decodeADDImm(i1))
+                    let target =
+                        ARM64.decodeADRP(insn: i0, address: UInt64(i))
+                        + UInt64(ARM64.decodeADDImm(i1))
                     if target == fmtOffset {
                         if let slotIdx = findStringSlot(length: newArgs.count) {
                             let slotVa = UInt64(slotIdx)
                             data.replaceSubrange(slotIdx..<(slotIdx + newArgs.count), with: newArgs)
-                            let newADRP = ARM64.encodeADRP(target: slotVa, address: UInt64(i), rd: 2)
+                            let newADRP = ARM64.encodeADRP(
+                                target: slotVa, address: UInt64(i), rd: 2)
                             let newADD = ARM64.encodeADDImm(rd: 2, rn: 2, imm: Int(slotVa & 0xFFF))
                             let adrpData = withUnsafeBytes(of: newADRP.littleEndian) { Data($0) }
                             let addData = withUnsafeBytes(of: newADD.littleEndian) { Data($0) }
                             data.replaceSubrange(i..<(i + 4), with: adrpData)
                             data.replaceSubrange((i + 4)..<(i + 8), with: addData)
                             if verbose {
-                                print("  [+] iBoot: Redirected boot-args to 0x\(String(slotIdx, radix: 16))")
+                                print(
+                                    "  [+] iBoot: Redirected boot-args to 0x\(String(slotIdx, radix: 16))"
+                                )
                             }
                             return 2
                         }
@@ -480,13 +494,21 @@ class KernelPatcher: Patcher {
                 let i1 = buffer.load(fromByteOffset: i + 4, as: UInt32.self)
                 if ARM64.isADRP(i0) && ARM64.isADDImm(i1) {
                     let va = macho?.foffToVa(i) ?? 0
-                    let target = ARM64.decodeADRP(insn: i0, address: va) + UInt64(ARM64.decodeADDImm(i1))
+                    let target =
+                        ARM64.decodeADRP(insn: i0, address: va) + UInt64(ARM64.decodeADDImm(i1))
                     if target == strVa {
                         for j in stride(from: i + 8, to: min(i + 0x200, buffer.count - 4), by: 4) {
                             let insn = buffer.load(fromByteOffset: j, as: UInt32.self)
-                            if (insn & 0xFF00_0000) == 0x3700_0000 && (insn & 0x1F) == 0x08 && ((insn >> 19) & 0x1F) == 5 {
-                                buffer.storeBytes(of: ARM64.nop.littleEndian, toByteOffset: j, as: UInt32.self)
-                                if verbose { print("  [+] Kernel: Patched APFS root snapshot check at 0x\(String(j, radix: 16))") }
+                            if (insn & 0xFF00_0000) == 0x3700_0000 && (insn & 0x1F) == 0x08
+                                && ((insn >> 19) & 0x1F) == 5
+                            {
+                                buffer.storeBytes(
+                                    of: ARM64.nop.littleEndian, toByteOffset: j, as: UInt32.self)
+                                if verbose {
+                                    print(
+                                        "  [+] Kernel: Patched APFS root snapshot check at 0x\(String(j, radix: 16))"
+                                    )
+                                }
                                 count += 1
                                 break
                             }
@@ -510,13 +532,21 @@ class KernelPatcher: Patcher {
                 let i1 = buffer.load(fromByteOffset: i + 4, as: UInt32.self)
                 if ARM64.isADRP(i0) && ARM64.isADDImm(i1) {
                     let va = macho?.foffToVa(i) ?? 0
-                    let target = ARM64.decodeADRP(insn: i0, address: va) + UInt64(ARM64.decodeADDImm(i1))
+                    let target =
+                        ARM64.decodeADRP(insn: i0, address: va) + UInt64(ARM64.decodeADDImm(i1))
                     if target == strVa {
                         for j in stride(from: i - 4, to: max(i - 0x100, 0), by: -4) {
                             let insn = buffer.load(fromByteOffset: j, as: UInt32.self)
-                            if (insn & 0xFE00_0000) == 0x3600_0000 || (insn & 0xFF00_0000) == 0x5400_0000 {
-                                buffer.storeBytes(of: ARM64.nop.littleEndian, toByteOffset: j, as: UInt32.self)
-                                if verbose { print("  [+] Kernel: Patched APFS seal broken check at 0x\(String(j, radix: 16))") }
+                            if (insn & 0xFE00_0000) == 0x3600_0000
+                                || (insn & 0xFF00_0000) == 0x5400_0000
+                            {
+                                buffer.storeBytes(
+                                    of: ARM64.nop.littleEndian, toByteOffset: j, as: UInt32.self)
+                                if verbose {
+                                    print(
+                                        "  [+] Kernel: Patched APFS seal broken check at 0x\(String(j, radix: 16))"
+                                    )
+                                }
                                 count += 1
                                 break
                             }
@@ -540,13 +570,19 @@ class KernelPatcher: Patcher {
                 let i1 = buffer.load(fromByteOffset: i + 4, as: UInt32.self)
                 if ARM64.isADRP(i0) && ARM64.isADDImm(i1) {
                     let va = macho?.foffToVa(i) ?? 0
-                    let target = ARM64.decodeADRP(insn: i0, address: va) + UInt64(ARM64.decodeADDImm(i1))
+                    let target =
+                        ARM64.decodeADRP(insn: i0, address: va) + UInt64(ARM64.decodeADDImm(i1))
                     if target == strVa {
                         for j in stride(from: i - 4, to: max(i - 0x100, 0), by: -4) {
                             let insn = buffer.load(fromByteOffset: j, as: UInt32.self)
                             if (insn & 0xFF00_0000) == 0x3500_0000 {
-                                buffer.storeBytes(of: ARM64.nop.littleEndian, toByteOffset: j, as: UInt32.self)
-                                if verbose { print("  [+] Kernel: Patched bsd_init rootvp auth check at 0x\(String(j, radix: 16))") }
+                                buffer.storeBytes(
+                                    of: ARM64.nop.littleEndian, toByteOffset: j, as: UInt32.self)
+                                if verbose {
+                                    print(
+                                        "  [+] Kernel: Patched bsd_init rootvp auth check at 0x\(String(j, radix: 16))"
+                                    )
+                                }
                                 count += 1
                                 break
                             }
@@ -570,14 +606,23 @@ class KernelPatcher: Patcher {
                 let i1 = buffer.load(fromByteOffset: i + 4, as: UInt32.self)
                 if ARM64.isADRP(i0) && ARM64.isADDImm(i1) {
                     let va = macho?.foffToVa(i) ?? 0
-                    let target = ARM64.decodeADRP(insn: i0, address: va) + UInt64(ARM64.decodeADDImm(i1))
+                    let target =
+                        ARM64.decodeADRP(insn: i0, address: va) + UInt64(ARM64.decodeADDImm(i1))
                     if target == strVa {
                         for j in stride(from: i, to: max(i - 0x1000, 0), by: -4) {
                             let insn = buffer.load(fromByteOffset: j, as: UInt32.self)
                             if insn == 0xD503_233F || (insn & 0xFFC0_7FFF) == 0xA900_7BFD {
-                                buffer.storeBytes(of: ARM64.mov_w0_0.littleEndian, toByteOffset: j, as: UInt32.self)
-                                buffer.storeBytes(of: ARM64.ret.littleEndian, toByteOffset: j + 4, as: UInt32.self)
-                                if verbose { print("  [+] Kernel: Stubbed proc_check_launch_constraints at 0x\(String(j, radix: 16))") }
+                                buffer.storeBytes(
+                                    of: ARM64.mov_w0_0.littleEndian, toByteOffset: j,
+                                    as: UInt32.self)
+                                buffer.storeBytes(
+                                    of: ARM64.ret.littleEndian, toByteOffset: j + 4, as: UInt32.self
+                                )
+                                if verbose {
+                                    print(
+                                        "  [+] Kernel: Stubbed proc_check_launch_constraints at 0x\(String(j, radix: 16))"
+                                    )
+                                }
                                 count += 2
                                 return
                             }
@@ -599,9 +644,15 @@ class KernelPatcher: Patcher {
                     if i >= 4 {
                         let prev = buffer.load(fromByteOffset: i - 4, as: UInt32.self)
                         if ARM64.isRet(prev) || prev == 0xD503_233F {
-                            buffer.storeBytes(of: ARM64.mov_x0_1.littleEndian, toByteOffset: i, as: UInt32.self)
-                            buffer.storeBytes(of: ARM64.ret.littleEndian, toByteOffset: i + 4, as: UInt32.self)
-                            if verbose { print("  [+] Kernel: Stubbed PE_i_can_has_debugger at 0x\(String(i, radix: 16))") }
+                            buffer.storeBytes(
+                                of: ARM64.mov_x0_1.littleEndian, toByteOffset: i, as: UInt32.self)
+                            buffer.storeBytes(
+                                of: ARM64.ret.littleEndian, toByteOffset: i + 4, as: UInt32.self)
+                            if verbose {
+                                print(
+                                    "  [+] Kernel: Stubbed PE_i_can_has_debugger at 0x\(String(i, radix: 16))"
+                                )
+                            }
                             count += 2
                             break
                         }
@@ -624,13 +675,19 @@ class KernelPatcher: Patcher {
                 let i1 = buffer.load(fromByteOffset: i + 4, as: UInt32.self)
                 if ARM64.isADRP(i0) && ARM64.isADDImm(i1) {
                     let va = macho?.foffToVa(i) ?? 0
-                    let target = ARM64.decodeADRP(insn: i0, address: va) + UInt64(ARM64.decodeADDImm(i1))
+                    let target =
+                        ARM64.decodeADRP(insn: i0, address: va) + UInt64(ARM64.decodeADDImm(i1))
                     if target == strVa {
                         for j in stride(from: i + 8, to: min(i + 0x40, buffer.count - 4), by: 4) {
                             let insn = buffer.load(fromByteOffset: j, as: UInt32.self)
                             if (insn & 0xFE00_0000) == 0x3600_0000 {
-                                buffer.storeBytes(of: ARM64.nop.littleEndian, toByteOffset: j, as: UInt32.self)
-                                if verbose { print("  [+] Kernel: Patched TXM post-validation NOP at 0x\(String(j, radix: 16))") }
+                                buffer.storeBytes(
+                                    of: ARM64.nop.littleEndian, toByteOffset: j, as: UInt32.self)
+                                if verbose {
+                                    print(
+                                        "  [+] Kernel: Patched TXM post-validation NOP at 0x\(String(j, radix: 16))"
+                                    )
+                                }
                                 count += 1
                                 break
                             }
@@ -654,13 +711,23 @@ class KernelPatcher: Patcher {
                 let i1 = buffer.load(fromByteOffset: i + 4, as: UInt32.self)
                 if ARM64.isADRP(i0) && ARM64.isADDImm(i1) {
                     let va = macho?.foffToVa(i) ?? 0
-                    let target = ARM64.decodeADRP(insn: i0, address: va) + UInt64(ARM64.decodeADDImm(i1))
+                    let target =
+                        ARM64.decodeADRP(insn: i0, address: va) + UInt64(ARM64.decodeADDImm(i1))
                     if target == strVa {
-                        for j in stride(from: i & ~0xFFF, to: min((i & ~0xFFF) + 0x2000, buffer.count - 4), by: 4) {
+                        for j in stride(
+                            from: i & ~0xFFF, to: min((i & ~0xFFF) + 0x2000, buffer.count - 4),
+                            by: 4)
+                        {
                             let insn = buffer.load(fromByteOffset: j, as: UInt32.self)
                             if insn == 0x7100_081F {
-                                buffer.storeBytes(of: UInt32(0x6B00_001F).littleEndian, toByteOffset: j, as: UInt32.self)
-                                if verbose { print("  [+] Kernel: Patched postValidation cmp at 0x\(String(j, radix: 16))") }
+                                buffer.storeBytes(
+                                    of: UInt32(0x6B00_001F).littleEndian, toByteOffset: j,
+                                    as: UInt32.self)
+                                if verbose {
+                                    print(
+                                        "  [+] Kernel: Patched postValidation cmp at 0x\(String(j, radix: 16))"
+                                    )
+                                }
                                 count += 1
                             }
                         }
@@ -684,14 +751,21 @@ class KernelPatcher: Patcher {
                 let i1 = buffer.load(fromByteOffset: i + 4, as: UInt32.self)
                 if ARM64.isADRP(i0) && ARM64.isADDImm(i1) {
                     let va = macho?.foffToVa(i) ?? 0
-                    let target = ARM64.decodeADRP(insn: i0, address: va) + UInt64(ARM64.decodeADDImm(i1))
+                    let target =
+                        ARM64.decodeADRP(insn: i0, address: va) + UInt64(ARM64.decodeADDImm(i1))
                     if target == strVa {
                         var blsFound = 0
                         for j in stride(from: i - 4, to: max(i - 0x80, 0), by: -4) {
                             let insn = buffer.load(fromByteOffset: j, as: UInt32.self)
                             if ARM64.isBL(insn) {
-                                buffer.storeBytes(of: ARM64.mov_w0_1.littleEndian, toByteOffset: j, as: UInt32.self)
-                                if verbose { print("  [+] Kernel: Patched dyld policy BL at 0x\(String(j, radix: 16))") }
+                                buffer.storeBytes(
+                                    of: ARM64.mov_w0_1.littleEndian, toByteOffset: j,
+                                    as: UInt32.self)
+                                if verbose {
+                                    print(
+                                        "  [+] Kernel: Patched dyld policy BL at 0x\(String(j, radix: 16))"
+                                    )
+                                }
                                 blsFound += 1
                                 if blsFound >= 2 { break }
                             }
@@ -709,7 +783,7 @@ class KernelPatcher: Patcher {
         let strOff = findString("apfs_mount_upgrade_checks\0")
         if strOff < 0 { return 0 }
         let strVa = macho?.foffToVa(strOff) ?? 0
-        
+
         var count = 0
         data.withUnsafeMutableBytes { buffer in
             for i in stride(from: 0, to: buffer.count - 8, by: 4) {
@@ -717,14 +791,23 @@ class KernelPatcher: Patcher {
                 let i1 = buffer.load(fromByteOffset: i + 4, as: UInt32.self)
                 if ARM64.isADRP(i0) && ARM64.isADDImm(i1) {
                     let va = macho?.foffToVa(i) ?? 0
-                    let target = ARM64.decodeADRP(insn: i0, address: va) + UInt64(ARM64.decodeADDImm(i1))
+                    let target =
+                        ARM64.decodeADRP(insn: i0, address: va) + UInt64(ARM64.decodeADDImm(i1))
                     if target == strVa {
                         // Scan around for cmp x0, x8 (0xEB08001F)
-                        for j in stride(from: max(i - 0x1000, 0), to: min(i + 0x1000, buffer.count - 4), by: 4) {
+                        for j in stride(
+                            from: max(i - 0x1000, 0), to: min(i + 0x1000, buffer.count - 4), by: 4)
+                        {
                             let insn = buffer.load(fromByteOffset: j, as: UInt32.self)
                             if insn == 0xEB08_001F {
-                                buffer.storeBytes(of: UInt32(0xEB00_001F).littleEndian, toByteOffset: j, as: UInt32.self)
-                                if verbose { print("  [+] Kernel: Patched apfs_vfsop_mount cmp at 0x\(String(j, radix: 16))") }
+                                buffer.storeBytes(
+                                    of: UInt32(0xEB00_001F).littleEndian, toByteOffset: j,
+                                    as: UInt32.self)
+                                if verbose {
+                                    print(
+                                        "  [+] Kernel: Patched apfs_vfsop_mount cmp at 0x\(String(j, radix: 16))"
+                                    )
+                                }
                                 count += 1
                                 break
                             }
@@ -741,24 +824,35 @@ class KernelPatcher: Patcher {
         let seatbeltOff = findString("Seatbelt sandbox policy")
         let sandboxOff = findString("Sandbox")
         if seatbeltOff < 0 || sandboxOff < 0 { return 0 }
-        
+
         var count = 0
         data.withUnsafeMutableBytes { buffer in
             for i in stride(from: 0, to: buffer.count - 40, by: 8) {
                 let val0 = buffer.load(fromByteOffset: i, as: UInt64.self)
                 let val1 = buffer.load(fromByteOffset: i + 8, as: UInt64.self)
-                if (val0 & 0x7FFFFFFFFFF) == UInt64(sandboxOff) && (val1 & 0x7FFFFFFFFFF) == UInt64(seatbeltOff) {
+                if (val0 & 0x7FF_FFFF_FFFF) == UInt64(sandboxOff)
+                    && (val1 & 0x7FF_FFFF_FFFF) == UInt64(seatbeltOff)
+                {
                     let opsVa = buffer.load(fromByteOffset: i + 32, as: UInt64.self)
-                    let opsOff = Int(opsVa & 0xFFFFFFFF)
+                    let opsOff = Int(opsVa & 0xFFFF_FFFF)
                     if opsOff > 0 && opsOff < buffer.count {
                         let indices = [36, 87, 88, 91, 120]
                         for idx in indices {
-                            let funcVa = buffer.load(fromByteOffset: opsOff + idx * 8, as: UInt64.self)
-                            let funcOff = Int(funcVa & 0xFFFFFFFF)
+                            let funcVa = buffer.load(
+                                fromByteOffset: opsOff + idx * 8, as: UInt64.self)
+                            let funcOff = Int(funcVa & 0xFFFF_FFFF)
                             if funcOff > 0 && funcOff < buffer.count {
-                                buffer.storeBytes(of: ARM64.mov_x0_0.littleEndian, toByteOffset: funcOff, as: UInt32.self)
-                                buffer.storeBytes(of: ARM64.ret.littleEndian, toByteOffset: funcOff + 4, as: UInt32.self)
-                                if verbose { print("  [+] Kernel: Stubbed sandbox hook at 0x\(String(funcOff, radix: 16))") }
+                                buffer.storeBytes(
+                                    of: ARM64.mov_x0_0.littleEndian, toByteOffset: funcOff,
+                                    as: UInt32.self)
+                                buffer.storeBytes(
+                                    of: ARM64.ret.littleEndian, toByteOffset: funcOff + 4,
+                                    as: UInt32.self)
+                                if verbose {
+                                    print(
+                                        "  [+] Kernel: Stubbed sandbox hook at 0x\(String(funcOff, radix: 16))"
+                                    )
+                                }
                                 count += 2
                             }
                         }
