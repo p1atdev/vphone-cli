@@ -4,8 +4,8 @@
 
 # ─── Configuration (override with make VAR=value) ─────────────────
 VM_DIR      ?= vm
-CPU         ?= 4
-MEMORY      ?= 4096
+CPU         ?= 8
+MEMORY      ?= 8192
 DISK_SIZE   ?= 64
 
 # ─── Paths ────────────────────────────────────────────────────────
@@ -18,7 +18,7 @@ IRECOVERY   := $(LIMD_PREFIX)/bin/irecovery
 IDEVICERESTORE := $(LIMD_PREFIX)/bin/idevicerestore
 PYTHON      := $(CURDIR)/$(VENV)/bin/python3
 
-SWIFT_SOURCES := $(shell find sources -name '*.swift' -o -name '*.m' -o -name '*.h')
+SWIFT_SOURCES := $(shell find sources -name '*.swift')
 
 # ─── Environment — prefer project-local binaries ────────────────
 export PATH := $(CURDIR)/$(LIMD_PREFIX)/bin:$(CURDIR)/$(VENV)/bin:$(CURDIR)/.build/release:$(PATH)
@@ -39,7 +39,7 @@ help:
 	@echo ""
 	@echo "VM management:"
 	@echo "  make vm_new                  Create VM directory"
-	@echo "  make boot                    Boot VM (headless)"
+	@echo "  make boot                    Boot VM (GUI)"
 	@echo "  make boot_dfu                Boot VM in DFU mode"
 	@echo ""
 	@echo "Firmware pipeline:"
@@ -110,21 +110,18 @@ boot: build
 		--rom ./AVPBooter.vresearch1.bin \
 		--disk ./Disk.img \
 		--nvram ./nvram.bin \
+		--machine-id ./machineIdentifier.bin \
 		--cpu $(CPU) --memory $(MEMORY) \
-		--serial-log ./serial.log \
-		--stop-on-panic --stop-on-fatal-error \
 		--sep-rom ./AVPSEPBooter.vresearch1.bin \
-		--sep-storage ./SEPStorage \
-		--no-graphics
+		--sep-storage ./SEPStorage
 
 boot_dfu: build
 	cd $(VM_DIR) && "$(CURDIR)/$(BINARY)" \
 		--rom ./AVPBooter.vresearch1.bin \
 		--disk ./Disk.img \
 		--nvram ./nvram.bin \
+		--machine-id ./machineIdentifier.bin \
 		--cpu $(CPU) --memory $(MEMORY) \
-		--serial-log ./serial.log \
-		--stop-on-panic --stop-on-fatal-error \
 		--sep-rom ./AVPSEPBooter.vresearch1.bin \
 		--sep-storage ./SEPStorage \
 		--no-graphics --dfu

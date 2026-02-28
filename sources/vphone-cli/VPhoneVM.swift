@@ -1,27 +1,27 @@
+import Dynamic
 import Foundation
 import VPhoneObjC
 import Virtualization
 
 /// Minimal VM for booting a vphone (virtual iPhone) in DFU mode.
+@MainActor
 class VPhoneVM: NSObject, VZVirtualMachineDelegate {
     let virtualMachine: VZVirtualMachine
-    private var done = false
 
     struct Options {
         var romURL: URL
         var nvramURL: URL
+        var machineIDURL: URL
         var diskURL: URL
-        var cpuCount: Int = 4
-        var memorySize: UInt64 = 4 * 1024 * 1024 * 1024
-        var skipSEP: Bool = true
-        var sepStorageURL: URL?
-        var sepRomURL: URL?
-        var serialLogPath: String? = nil
-        var stopOnPanic: Bool = false
-        var stopOnFatalError: Bool = false
+        var cpuCount: Int = 8
+        var memorySize: UInt64 = 8 * 1024 * 1024 * 1024
+        var sepStorageURL: URL
+        var sepRomURL: URL
+        var screenWidth: Int = 1290
+        var screenHeight: Int = 2796
+        var screenPPI: Int = 460
+        var screenScale: Double = 3.0
     }
-
-    private var consoleLogFileHandle: FileHandle?
 
     init(options: Options) throws {
         // --- Hardware model (PV=3) ---
@@ -31,10 +31,8 @@ class VPhoneVM: NSObject, VZVirtualMachineDelegate {
         // --- Platform ---
         let platform = VZMacPlatformConfiguration()
 
-        // Persist machineIdentifier for stable ECID (same as vrevm)
-        let machineIDPath = options.nvramURL.deletingLastPathComponent()
-            .appendingPathComponent("machineIdentifier.bin")
-        if let savedData = try? Data(contentsOf: machineIDPath),
+        // Persist machineIdentifier for stable ECID
+        if let savedData = try? Data(contentsOf: options.machineIDURL),
             let savedID = VZMacMachineIdentifier(dataRepresentation: savedData)
         {
             platform.machineIdentifier = savedID
@@ -42,8 +40,10 @@ class VPhoneVM: NSObject, VZVirtualMachineDelegate {
         } else {
             let newID = VZMacMachineIdentifier()
             platform.machineIdentifier = newID
-            try newID.dataRepresentation.write(to: machineIDPath)
-            print("[vphone] Created new machineIdentifier -> \(machineIDPath.lastPathComponent)")
+            try newID.dataRepresentation.write(to: options.machineIDURL)
+            print(
+                "[vphone] Created new machineIdentifier -> \(options.machineIDURL.lastPathComponent)"
+            )
         }
 
         let auxStorage = try VZMacAuxiliaryStorage(
@@ -53,19 +53,20 @@ class VPhoneVM: NSObject, VZVirtualMachineDelegate {
         )
         platform.auxiliaryStorage = auxStorage
         platform.hardwareModel = hwModel
-        // platformFusing = prod (same as vrevm config)
 
-        // Set NVRAM boot-args to enable serial output (same as vrevm restore)
+        // Set NVRAM boot-args to enable serial output
         let bootArgs = "serial=3 debug=0x104c04"
         if let bootArgsData = bootArgs.data(using: .utf8) {
-            if VPhoneSetNVRAMVariable(auxStorage, "boot-args", bootArgsData) {
-                print("[vphone] NVRAM boot-args: \(bootArgs)")
-            }
+            let ok =
+                Dynamic(auxStorage)
+                ._setDataValue(bootArgsData, forNVRAMVariableNamed: "boot-args", error: nil)
+                .asBool ?? false
+            if ok { print("[vphone] NVRAM boot-args: \(bootArgs)") }
         }
 
         // --- Boot loader with custom ROM ---
         let bootloader = VZMacOSBootLoader()
-        VPhoneSetBootLoaderROMURL(bootloader, options.romURL)
+        Dynamic(bootloader)._setROMURL(options.romURL)
 
         // --- VM Configuration ---
         let config = VZVirtualMachineConfiguration()
@@ -76,65 +77,59 @@ class VPhoneVM: NSObject, VZVirtualMachineDelegate {
         config.memorySize = max(
             options.memorySize, VZVirtualMachineConfiguration.minimumAllowedMemorySize)
 
-        // Display (vresearch101: 1290x2796 @ 460 PPI — matches vrevm)
+        // Display
         let gfx = VZMacGraphicsDeviceConfiguration()
         gfx.displays = [
             VZMacGraphicsDisplayConfiguration(
-                widthInPixels: 1290, heightInPixels: 2796, pixelsPerInch: 460)
+                widthInPixels: options.screenWidth, heightInPixels: options.screenHeight,
+                pixelsPerInch: options.screenPPI
+            )
         ]
         config.graphicsDevices = [gfx]
 
         // Storage
-        if FileManager.default.fileExists(atPath: options.diskURL.path) {
-            let attachment = try VZDiskImageStorageDeviceAttachment(
-                url: options.diskURL, readOnly: false)
-            config.storageDevices = [VZVirtioBlockDeviceConfiguration(attachment: attachment)]
+        guard FileManager.default.fileExists(atPath: options.diskURL.path) else {
+            throw VPhoneError.diskNotFound(options.diskURL.path)
         }
+        let attachment = try VZDiskImageStorageDeviceAttachment(
+            url: options.diskURL, readOnly: false)
+        config.storageDevices = [VZVirtioBlockDeviceConfiguration(attachment: attachment)]
 
         // Network (shared NAT)
         let net = VZVirtioNetworkDeviceConfiguration()
         net.attachment = VZNATNetworkDeviceAttachment()
         config.networkDevices = [net]
 
-        // Serial port (PL011 UART — always configured)
-        // Connect host stdin/stdout directly for interactive serial console
-        do {
-            if let serialPort = VPhoneCreatePL011SerialPort() {
-                serialPort.attachment = VZFileHandleSerialPortAttachment(
-                    fileHandleForReading: FileHandle.standardInput,
-                    fileHandleForWriting: FileHandle.standardOutput
-                )
-                config.serialPorts = [serialPort]
-                print("[vphone] PL011 serial port attached (interactive)")
-            }
-
-            // Set up log file if requested
-            if let logPath = options.serialLogPath {
-                let logURL = URL(fileURLWithPath: logPath)
-                FileManager.default.createFile(atPath: logURL.path, contents: nil)
-                self.consoleLogFileHandle = FileHandle(forWritingAtPath: logURL.path)
-                print("[vphone] Serial log: \(logPath)")
-            }
+        // Serial port (PL011 UART — interactive stdin/stdout)
+        if let serialPort = Dynamic._VZPL011SerialPortConfiguration().asObject
+            as? VZSerialPortConfiguration
+        {
+            serialPort.attachment = VZFileHandleSerialPortAttachment(
+                fileHandleForReading: FileHandle.standardInput,
+                fileHandleForWriting: FileHandle.standardOutput
+            )
+            config.serialPorts = [serialPort]
+            print("[vphone] PL011 serial port attached (interactive)")
         }
 
-        // Multi-touch (USB touch screen for VNC click support)
-        VPhoneConfigureMultiTouch(config)
+        // Multi-touch (USB touch screen)
+        if let obj = Dynamic._VZUSBTouchScreenConfiguration().asObject {
+            Dynamic(config)._setMultiTouchDevices([obj])
+            print("[vphone] USB touch screen configured")
+        }
 
-        // GDB debug stub (default init, system-assigned port — same as vrevm)
-        VPhoneSetGDBDebugStubDefault(config)
+        config.keyboards = [VZUSBKeyboardConfiguration()]
+
+        // GDB debug stub (default init, system-assigned port)
+        Dynamic(config)._setDebugStub(Dynamic._VZGDBDebugStubConfiguration().asObject)
 
         // Coprocessors
-        if options.skipSEP {
-            print("[vphone] SKIP_SEP=1 — no coprocessor")
-        } else if let sepStorageURL = options.sepStorageURL {
-            VPhoneConfigureSEP(config, sepStorageURL, options.sepRomURL)
-            print("[vphone] SEP coprocessor enabled (storage: \(sepStorageURL.path))")
-        } else {
-            // Create default SEP storage next to NVRAM
-            let defaultSEPURL = options.nvramURL.deletingLastPathComponent()
-                .appendingPathComponent("sep_storage.bin")
-            VPhoneConfigureSEP(config, defaultSEPURL, options.sepRomURL)
-            print("[vphone] SEP coprocessor enabled (storage: \(defaultSEPURL.path))")
+        let sepConfig = Dynamic._VZSEPCoprocessorConfiguration(storageURL: options.sepStorageURL)
+        sepConfig.setRomBinaryURL(options.sepRomURL)
+        sepConfig.setDebugStub(Dynamic._VZGDBDebugStubConfiguration().asObject)
+        if let sepObj = sepConfig.asObject {
+            Dynamic(config)._setCoprocessors([sepObj])
+            print("[vphone] SEP coprocessor enabled (storage: \(options.sepStorageURL.path))")
         }
 
         // Validate
@@ -146,12 +141,14 @@ class VPhoneVM: NSObject, VZVirtualMachineDelegate {
         virtualMachine.delegate = self
     }
 
-    // MARK: - DFU start
+    // MARK: - Start
 
     @MainActor
-    func start(forceDFU: Bool, stopOnPanic: Bool, stopOnFatalError: Bool) async throws {
+    func start(forceDFU: Bool) async throws {
         let opts = VZMacOSVirtualMachineStartOptions()
-        VPhoneConfigureStartOptions(opts, forceDFU, stopOnPanic, stopOnFatalError)
+        Dynamic(opts)._setForceDFU(forceDFU)
+        Dynamic(opts)._setStopInIBootStage1(false)
+        Dynamic(opts)._setStopInIBootStage2(false)
         print("[vphone] Starting\(forceDFU ? " DFU" : "")...")
         try await virtualMachine.start(options: opts)
         if forceDFU {
@@ -161,58 +158,24 @@ class VPhoneVM: NSObject, VZVirtualMachineDelegate {
         }
     }
 
-    // MARK: - Wait
-
-    func waitUntilStopped() async {
-        while !done {
-            try? await Task.sleep(nanoseconds: 500_000_000)
-        }
-    }
-
     // MARK: - Delegate
 
-    func guestDidStop(_: VZVirtualMachine) {
+    // VZ delivers delegate callbacks via dispatch source on the main queue.
+
+    nonisolated func guestDidStop(_: VZVirtualMachine) {
         print("[vphone] Guest stopped")
-        done = true
+        exit(EXIT_SUCCESS)
     }
 
-    func virtualMachine(_: VZVirtualMachine, didStopWithError error: Error) {
+    nonisolated func virtualMachine(_: VZVirtualMachine, didStopWithError error: Error) {
         print("[vphone] Stopped with error: \(error)")
-        done = true
+        exit(EXIT_FAILURE)
     }
 
-    func virtualMachine(
+    nonisolated func virtualMachine(
         _: VZVirtualMachine, networkDevice _: VZNetworkDevice,
         attachmentWasDisconnectedWithError error: Error
     ) {
         print("[vphone] Network error: \(error)")
-    }
-
-    // MARK: - Cleanup
-
-    func stopConsoleCapture() {
-        consoleLogFileHandle?.closeFile()
-    }
-}
-
-// MARK: - Errors
-
-enum VPhoneError: Error, CustomStringConvertible {
-    case hardwareModelNotSupported
-    case romNotFound(String)
-
-    var description: String {
-        switch self {
-        case .hardwareModelNotSupported:
-            """
-            PV=3 hardware model not supported. Check:
-              1. macOS >= 15.0 (Sequoia)
-              2. Signed with com.apple.private.virtualization + \
-            com.apple.private.virtualization.security-research
-              3. SIP/AMFI disabled
-            """
-        case .romNotFound(let p):
-            "ROM not found: \(p)"
-        }
     }
 }
