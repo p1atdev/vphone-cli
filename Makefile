@@ -45,6 +45,7 @@ help:
 	@echo "Firmware pipeline:"
 	@echo "  make fw_prepare              Download IPSWs, extract, merge"
 	@echo "  make fw_patch                Patch boot chain (6 components)"
+	@echo "  make fw_patch_jb             Run fw_patch + JB extension patches (WIP)"
 	@echo ""
 	@echo "Restore:"
 	@echo "  make restore_get_shsh        Fetch SHSH blob from device"
@@ -56,6 +57,7 @@ help:
 	@echo ""
 	@echo "CFW:"
 	@echo "  make cfw_install             Install CFW mods via SSH"
+	@echo "  make cfw_install_jb          Install CFW + JB extensions (jetsam/procursus/basebin)"
 	@echo ""
 	@echo "Variables: VM_DIR=$(VM_DIR) CPU=$(CPU) MEMORY=$(MEMORY) DISK_SIZE=$(DISK_SIZE)"
 
@@ -130,7 +132,7 @@ boot_dfu: build
 # Firmware pipeline
 # ═══════════════════════════════════════════════════════════════════
 
-.PHONY: fw_prepare fw_patch
+.PHONY: fw_prepare fw_patch fw_patch_jb
 
 fw_prepare: build
 	cd $(VM_DIR) && bash "$(CURDIR)/$(SCRIPTS)/fw_prepare_swift.sh"
@@ -147,6 +149,9 @@ fw_patch: build
 	cd $(VM_DIR) && "$(CURDIR)/$(BINARY)" patch txm iPhone*_Restore/Firmware/txm.iphoneos.research.im4p
 	cd $(VM_DIR) && "$(CURDIR)/$(BINARY)" patch kernel iPhone*_Restore/kernelcache.research.vphone600
 	@echo "=== All components patched successfully ==="
+
+fw_patch_jb:
+	cd $(VM_DIR) && $(PYTHON) "$(CURDIR)/$(SCRIPTS)/fw_patch_jb.py" .
 
 # ═══════════════════════════════════════════════════════════════════
 # Restore
@@ -176,7 +181,10 @@ ramdisk_send:
 # CFW
 # ═══════════════════════════════════════════════════════════════════
 
-.PHONY: cfw_install
+.PHONY: cfw_install cfw_install_jb
 
 cfw_install:
 	cd $(VM_DIR) && zsh "$(CURDIR)/$(SCRIPTS)/cfw_install.sh" .
+
+cfw_install_jb:
+	cd $(VM_DIR) && zsh "$(CURDIR)/$(SCRIPTS)/cfw_install_jb.sh" .

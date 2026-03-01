@@ -313,3 +313,8 @@ __marimo__/
 !/VM/.gitkeep
 .limd/
 /.swiftpm
+*.ipsw
+/updates-cdn
+/researchs/jb_asm_refs
+TODO.md
+/references/
