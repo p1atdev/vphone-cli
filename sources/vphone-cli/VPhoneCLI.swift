@@ -22,7 +22,7 @@ struct VPhoneCLI: ParsableCommand {
         defaultSubcommand: Boot.self
     )
 
-    struct Boot: AsyncParsableCommand {
+    struct Boot: ParsableCommand {
         static let configuration = CommandConfiguration(
             commandName: "boot",
             abstract: "Boot the virtual machine"
@@ -70,16 +70,17 @@ struct VPhoneCLI: ParsableCommand {
         @Flag(help: "Run without GUI (headless)")
         var noGraphics: Bool = false
 
-        @MainActor
-        func run() async throws {
-            let app = NSApplication.shared
-            let delegate = VPhoneAppDelegate(config: self)
-            app.delegate = delegate
-            app.run()
+        // https://forums.swift.org/t/asyncparsablecommand-doesnt-work/71300/2
+        func run() throws {
+            Task { @MainActor in
+                let app = NSApplication.shared
+                let delegate = VPhoneAppDelegate(config: self)
+                app.delegate = delegate
+                app.run()
+            }
         }
     }
 
-    // https://forums.swift.org/t/asyncparsablecommand-doesnt-work/71300/2
     struct Patch: ParsableCommand {
         static let configuration = CommandConfiguration(
             commandName: "patch",
