@@ -8,10 +8,10 @@ Virtual iPhone boot tool using Apple's Virtualization.framework with PCC researc
 - **Boot (GUI):** `make boot`
 - **Boot (DFU):** `make boot_dfu`
 - **All targets:** `make help`
-- **Python venv:** `make setup_venv` (installs to `.venv/`, activate with `source .venv/bin/activate`)
+- **Python venv:** `make setup_venv` (installs to `.venv/`, activate with `source .venv/bin/activate`) — required for JB patches, ramdisk, and CFW only
 - **Platform:** macOS 14+ (Sequoia), SIP/AMFI disabled
 - **Language:** Swift 6.0 (SwiftPM), private APIs via [Dynamic](https://github.com/mhdhejazi/Dynamic)
-- **Python deps:** `capstone`, `keystone-engine`, `pyimg4` (see `requirements.txt`)
+- **Python deps:** `capstone`, `keystone-engine`, `pyimg4` (see `requirements.txt`) — JB/ramdisk/CFW only; base `fw_patch` is pure Swift
 
 ## Workflow Rules
 
@@ -34,32 +34,44 @@ sources/
 └── vphone-cli/                       # Swift 6.0 executable (pure Swift, no ObjC)
     ├── main.swift                    # Entry point — NSApplication + AppDelegate
     ├── VPhoneAppDelegate.swift       # App lifecycle, SIGINT, VM start/stop
-    ├── VPhoneCLI.swift               # ArgumentParser options (no execution logic)
+    ├── VPhoneCLI.swift               # ArgumentParser subcommands: boot / patch / gen-manifest
     ├── VPhoneVM.swift                # @MainActor VM configuration and lifecycle
     ├── VPhoneHardwareModel.swift     # PV=3 hardware model via Dynamic
     ├── VPhoneVMView.swift            # Touch-enabled VZVirtualMachineView + helpers
     ├── VPhoneWindowController.swift  # @MainActor window management
     ├── VPhoneError.swift             # Error types
-    └── MainActor+Isolated.swift      # MainActor.isolated helper
+    ├── VPhoneManifest.swift          # BuildManifest/Restore.plist generation (gen-manifest)
+    ├── VPhoneMenuController.swift    # @MainActor NSMenu bar setup
+    ├── VPhoneKeyHelper.swift         # @MainActor keyboard input via private _VZKeyboard API
+    └── Patchers/                     # Swift firmware patcher package (boot-chain)
+        ├── VPhonePatcher.swift       # Entry point — dispatches to component patchers
+        ├── AVPBooterPatcher.swift    # AVPBooter DGST bypass (mov x0, #0)
+        ├── IBootPatcher.swift        # iBSS/iBEC/LLB dynamic patches
+        ├── TXMPatcher.swift          # TXM trustcache hash lookup bypass
+        ├── KernelPatcher.swift       # KernelCache — 25 patches (APFS, MAC, debugger, etc.)
+        ├── MachO.swift               # Mach-O segment/section parser
+        ├── ARM64.swift               # ARM64 instruction constants + encode/decode helpers
+        └── PatchLog.swift            # BEFORE/AFTER context logging
 
 scripts/
-├── patchers/                     # Python patcher package
-│   ├── iboot.py                  # Dynamic iBoot patcher (iBSS/iBEC/LLB)
+├── patchers/                     # Python patcher package — JB extensions only
+│   ├── iboot.py                  # (superseded by Swift IBootPatcher for base patches)
 │   ├── iboot_jb.py               # JB extension iBoot patcher (nonce skip)
-│   ├── kernel.py                 # Dynamic kernel patcher (25 patches)
+│   ├── kernel.py                 # (superseded by Swift KernelPatcher for base patches)
 │   ├── kernel_jb.py              # JB extension kernel patcher (~34 patches)
-│   ├── txm.py                    # Dynamic TXM patcher
+│   ├── txm.py                    # (superseded by Swift TXMPatcher for base patches)
 │   ├── txm_jb.py                 # JB extension TXM patcher (~13 patches)
+│   ├── avpbooter.py              # (superseded by Swift AVPBooterPatcher)
 │   └── cfw.py                    # CFW binary patcher (base + JB jetsam)
 ├── resources/                    # Resource archives
 │   ├── cfw_input.tar.zst
 │   ├── cfw_jb_input.tar.zst      # JB: procursus bootstrap + Sileo
 │   └── ramdisk_input.tar.zst
-├── fw_prepare.sh                 # Downloads IPSWs, merges cloudOS into iPhone
-├── fw_manifest.py                # Generates hybrid BuildManifest.plist & Restore.plist
-├── fw_patch.py                   # Patches 6 boot-chain components (41+ modifications)
-├── fw_patch_jb.py                # Runs fw_patch + JB extension patches (iBSS/TXM/kernel)
-├── ramdisk_build.py              # Builds SSH ramdisk with trustcache
+├── fw_prepare_swift.sh           # Downloads IPSWs, merges cloudOS into iPhone (uses vphone-cli)
+├── fw_manifest.py                # Generates hybrid BuildManifest.plist & Restore.plist (Python)
+├── fw_patch.py                   # Legacy Python patcher — superseded by `vphone-cli patch`
+├── fw_patch_jb.py                # JB extension patches (iBSS nonce, TXM CS, kernel JB) — Python
+├── ramdisk_build.py              # Builds SSH ramdisk with trustcache — Python
 ├── ramdisk_send.sh               # Sends ramdisk to device via irecovery
 ├── cfw_install.sh                # Installs custom firmware to VM disk
 ├── cfw_install_jb.sh             # Wrapper: cfw_install with JB phases enabled
@@ -76,6 +88,8 @@ researchs/
 
 - **Private API access:** Private Virtualization.framework APIs are called via the [Dynamic](https://github.com/mhdhejazi/Dynamic) library (runtime method dispatch from pure Swift). No ObjC bridge needed.
 - **App lifecycle:** Explicit `main.swift` creates `NSApplication` + `VPhoneAppDelegate`. CLI args parsed before the run loop starts. AppDelegate drives VM start, window, and shutdown.
+- **CLI subcommands:** `VPhoneCLI` defines three subcommands via `ArgumentParser`: `boot` (default, starts the VM), `patch` (patches a firmware component by name), and `gen-manifest` (generates `BuildManifest.plist` + `Restore.plist`).
+- **Firmware patching:** `vphone-cli patch <component> <file>` dispatches to component-specific patchers in `Patchers/`. IM4P containers are transparently unwrapped and repackaged. No Python or external tools required for base boot-chain patches.
 - **Configuration:** CLI options parsed via `ArgumentParser`, converted to `VPhoneVM.Options` struct, then used to build `VZVirtualMachineConfiguration`.
 - **Error handling:** `VPhoneError` enum with `CustomStringConvertible` for user-facing messages.
 - **Window management:** `VPhoneWindowController` wraps `NSWindow` + `VZVirtualMachineView`. Window size derived from configurable screen dimensions and scale factor. Touch input translated from mouse events to multi-touch via `VPhoneVMView`.
@@ -90,9 +104,10 @@ The firmware is a **PCC/iPhone hybrid** — PCC boot infrastructure wrapping iPh
 
 ```
 1. make fw_prepare          Download iPhone + cloudOS IPSWs, merge, generate hybrid plists
+                            (uses fw_prepare_swift.sh + vphone-cli gen-manifest)
         ↓
-2. make fw_patch            Patch 6 boot-chain components for signature bypass + debug
-   OR  make fw_patch_jb     Base patches + JB extensions (iBSS nonce, TXM CS, kernel JB)
+2. make fw_patch            Patch 6 boot-chain components via `vphone-cli patch` (Swift, no Python)
+   OR  make fw_patch_jb     Base patches (Swift) + JB extensions via Python (iBSS nonce, TXM CS, kernel JB)
         ↓
 3. make ramdisk_build       Build SSH ramdisk from SHSH blob, inject tools, sign with IM4M
         ↓
@@ -112,9 +127,10 @@ The firmware merges two Apple IPSWs:
 - **iPhone IPSW:** `iPhone17,3_26.1_23B85_Restore.ipsw` (d47ap)
 - **cloudOS IPSW:** PCC vresearch101ap IPSW (CDN hash URL)
 
-`fw_prepare.sh` extracts both, then copies cloudOS boot chain into the
+`fw_prepare_swift.sh` extracts both, then copies cloudOS boot chain into the
 iPhone restore directory (`kernelcache.*`, `Firmware/{agx,all_flash,ane,dfu,pmp}/*`,
-`Firmware/*.im4p`). The cloudOS extract is deleted after merge.
+`Firmware/*.im4p`). The cloudOS extract is deleted after merge. The script locates
+the `vphone-cli` binary automatically to run `gen-manifest` for plist generation.
 
 #### Boot Chain — from PCC (cloudOS / vresearch101ap)
 
@@ -131,7 +147,7 @@ iPhone restore directory (`kernelcache.*`, `Firmware/{agx,all_flash,ane,dfu,pmp}
 | KernelCache | `kernelcache.release.vphone600` | Yes (25) | APFS, MAC, debugger, launch constraints, etc. |
 | GPU/ANE/PMP | `Firmware/{agx,ane,pmp}/*` | No | — |
 
-> TXM filename says "iphoneos" but is copied from cloudOS IPSW (`fw_prepare.sh` line 81).
+> TXM filename says "iphoneos" but is copied from cloudOS IPSW (`fw_prepare_swift.sh`).
 
 #### OS / Filesystem — from iPhone (iPhone17,3)
 
@@ -159,16 +175,16 @@ idevicerestore selects this identity by partial-matching `Info.Variant` against
 
 ### Patched Components Summary
 
-**Boot chain patches** (`fw_patch.py`) — all 6 targets from **PCC**:
+**Boot chain patches** (`vphone-cli patch` — pure Swift) — all 6 targets from **PCC**:
 
-| Component | Patches | Technique |
-|-----------|---------|-----------|
-| AVPBooter | 1 | `mov x0, #0` (DGST bypass) |
-| iBSS | 2 | Dynamic via `patchers/iboot.py` (string anchors, instruction patterns) |
-| iBEC | 3 | Dynamic via `patchers/iboot.py` (string anchors, instruction patterns) |
-| LLB | 6 | Dynamic via `patchers/iboot.py` (string anchors, instruction patterns) |
-| TXM | 1 | Dynamic via `patchers/txm.py` (trustcache hash lookup bypass) |
-| KernelCache | 25 | Dynamic via `patchers/kernel.py` (string anchors, ADRP+ADD xrefs, BL frequency) |
+| Component | Patches | Swift Patcher | Technique |
+|-----------|---------|---------------|-----------|
+| AVPBooter | 1 | `AVPBooterPatcher` | `mov x0, #0` (DGST bypass) |
+| iBSS | 2 | `IBootPatcher` | String anchors, instruction patterns |
+| iBEC | 3 | `IBootPatcher` | String anchors, instruction patterns |
+| LLB | 6 | `IBootPatcher` | String anchors, instruction patterns |
+| TXM | 1 | `TXMPatcher` | Trustcache hash lookup bypass |
+| KernelCache | 25 | `KernelPatcher` | String anchors, ADRP+ADD xrefs, BL frequency |
 
 **JB extension patches** (`fw_patch_jb.py`) — runs base patches first, then adds:
 
@@ -264,12 +280,21 @@ AVPBooter (ROM, PCC)
 - Scripts resolve their own directory via `${0:a:h}` or `$(cd "$(dirname "$0")" && pwd)`.
 - Build uses `make build` which handles compilation and entitlement signing.
 
+### Swift Patchers
+
+- Base boot-chain patching (`fw_patch`) is fully reimplemented in Swift under `sources/vphone-cli/Patchers/`.
+- `ARM64.swift` provides instruction constants and encode/decode helpers (ADRP, ADD, BL, B, conditional branches).
+- `MachO.swift` parses Mach-O segments and sections; `KernelPatcher` uses it for VA↔file-offset translation and the BL caller index.
+- `KernelPatcher` builds a full BL caller index at init time, then uses string anchors, ADRP+ADD xrefs, and BL frequency analysis — the same dynamic techniques as the Python implementation.
+- `PatchLog` emits BEFORE/AFTER context output compatible with the Python patcher logs.
+- IM4P containers are transparently handled in `VPhonePatcher` (unwrap → patch → repackage).
+- Invoke via `vphone-cli patch <component> <file> [--output <out>]` or through `make fw_patch`.
+
 ### Python Scripts
 
-- Firmware patching uses `capstone` (disassembly), `keystone-engine` (assembly), and `pyimg4` (IM4P handling).
-- `patchers/kernel.py` uses dynamic pattern finding (string anchors, ADRP+ADD xrefs, BL frequency analysis) — nothing is hardcoded to specific offsets.
-- Each patch is logged with offset and before/after state.
-- Scripts operate on a VM directory and auto-discover the `*Restore*` subdirectory.
+- Python is still required for **JB extension patches** (`fw_patch_jb.py`), **ramdisk building** (`ramdisk_build.py`), and **CFW patching** (`patchers/cfw.py` via `cfw_install.sh`).
+- `patchers/kernel_jb.py`, `txm_jb.py`, `iboot_jb.py` extend the base patches with jailbreak-specific modifications.
+- The base Python patchers (`iboot.py`, `kernel.py`, `txm.py`, `avpbooter.py`) remain in `scripts/patchers/` but are superseded by the Swift implementations for normal use.
 - **Environment:** Use the project venv (`source .venv/bin/activate`). Create with `make setup_venv`. All deps in `requirements.txt`: `capstone`, `keystone-engine`, `pyimg4`.
 
 ## Build & Sign
