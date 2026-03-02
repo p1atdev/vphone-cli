@@ -26,7 +26,7 @@ class TXMJBPatcher(TXMPatcher):
     def apply(self):
         self.find_all()
         for off, pb, _ in self.patches:
-            self.data[off:off + len(pb)] = pb
+            self.data[off : off + len(pb)] = pb
         if self.verbose and self.patches:
             self._log(f"\n  [{len(self.patches)} TXM JB patches applied]")
         return len(self.patches)
@@ -51,14 +51,14 @@ class TXMJBPatcher(TXMPatcher):
     def _find_func_start(self, off, back=0x1000):
         start = max(0, off - back)
         for scan in range(off & ~3, start - 1, -4):
-            if self.raw[scan:scan + 4] == PACIBSP:
+            if self.raw[scan : scan + 4] == PACIBSP:
                 return scan
         return None
 
     def _find_func_end(self, func_start, forward=0x1200):
         end = min(self.size, func_start + forward)
         for scan in range(func_start + 4, end, 4):
-            if self.raw[scan:scan + 4] == PACIBSP:
+            if self.raw[scan : scan + 4] == PACIBSP:
                 return scan
         return end
 
@@ -115,10 +115,15 @@ class TXMJBPatcher(TXMPatcher):
                 p2 = _disasm_one(self.raw, scan - 8) if scan >= 8 else None
                 if not all((i, n, p1, p2)):
                     continue
-                if not (i.mnemonic == "bl"
-                        and n.mnemonic == "tbnz" and n.op_str.startswith("w0, #0,")
-                        and p1.mnemonic == "mov" and p1.op_str == "x2, #0"
-                        and p2.mnemonic == "mov" and p2.op_str == "x0, #0"):
+                if not (
+                    i.mnemonic == "bl"
+                    and n.mnemonic == "tbnz"
+                    and n.op_str.startswith("w0, #0,")
+                    and p1.mnemonic == "mov"
+                    and p1.op_str == "x2, #0"
+                    and p2.mnemonic == "mov"
+                    and p2.op_str == "x0, #0"
+                ):
                     continue
                 fs = self._find_func_start(scan)
                 if fs is not None:
@@ -136,12 +141,20 @@ class TXMJBPatcher(TXMPatcher):
         off = start
         while off < end:
             run = off
-            while run < end and self.raw[run:run + 4] == b"\x00\x00\x00\x00":
+            while run < end and self.raw[run : run + 4] == b"\x00\x00\x00\x00":
                 run += 4
             if run - off >= need:
                 prev = _disasm_one(self.raw, off - 4) if off >= 4 else None
                 if prev and prev.mnemonic in (
-                    "b", "b.eq", "b.ne", "b.lo", "b.hs", "cbz", "cbnz", "tbz", "tbnz"
+                    "b",
+                    "b.eq",
+                    "b.ne",
+                    "b.lo",
+                    "b.hs",
+                    "cbz",
+                    "cbnz",
+                    "tbz",
+                    "tbnz",
                 ):
                     return off
                 if near_off is not None and _disasm_one(self.raw, off):
@@ -164,11 +177,17 @@ class TXMJBPatcher(TXMPatcher):
                 continue
             if not (i0.mnemonic == "mov" and i0.op_str == "w2, #0x14"):
                 continue
-            if not (i1.mnemonic == "bl" and i2.mnemonic == "cbz"
-                    and i2.op_str.startswith("w0,")):
+            if not (
+                i1.mnemonic == "bl"
+                and i2.mnemonic == "cbz"
+                and i2.op_str.startswith("w0,")
+            ):
                 continue
-            self.emit(off + 4, MOV_X0_0,
-                      f"selector24 hashcmp bypass #{patched + 1}: bl -> mov x0,#0")
+            self.emit(
+                off + 4,
+                MOV_X0_0,
+                f"selector24 hashcmp bypass #{patched + 1}: bl -> mov x0,#0",
+            )
             patched += 1
 
         if patched > 3:
@@ -189,9 +208,11 @@ class TXMJBPatcher(TXMPatcher):
                 i_cbz = _disasm_one(self.raw, scan - 0x4)
                 if not i_blo or not i_cbz:
                     continue
-                if (i_blo.mnemonic == "b.lo"
-                        and i_cbz.mnemonic == "cbz"
-                        and i_cbz.op_str.startswith("x9,")):
+                if (
+                    i_blo.mnemonic == "b.lo"
+                    and i_cbz.mnemonic == "cbz"
+                    and i_cbz.op_str.startswith("x9,")
+                ):
                     locs.append(scan)
 
         if len(locs) != 1:
@@ -217,11 +238,17 @@ class TXMJBPatcher(TXMPatcher):
                 n = _disasm_one(self.raw, scan + 4)
                 if not i or not n:
                     continue
-                if i.mnemonic == "bl" and n.mnemonic == "tbnz" and n.op_str.startswith("w0, #0,"):
+                if (
+                    i.mnemonic == "bl"
+                    and n.mnemonic == "tbnz"
+                    and n.op_str.startswith("w0, #0,")
+                ):
                     cands.append(scan)
 
         if len(cands) != 1:
-            self._log(f"  [-] TXM JB: expected 1 get-task-allow BL site, found {len(cands)}")
+            self._log(
+                f"  [-] TXM JB: expected 1 get-task-allow BL site, found {len(cands)}"
+            )
             return False
 
         self.emit(cands[0], MOV_X0_1, "get-task-allow: bl -> mov x0,#1")
@@ -249,17 +276,24 @@ class TXMJBPatcher(TXMPatcher):
                 continue
             if not (i0.mnemonic == "mov" and i0.op_str == "x0, x20"):
                 continue
-            if not (i1.mnemonic == "bl" and i2.mnemonic == "mov"
-                    and i2.op_str == "x1, x21"):
+            if not (
+                i1.mnemonic == "bl" and i2.mnemonic == "mov" and i2.op_str == "x1, x21"
+            ):
                 continue
-            if not (i3.mnemonic == "mov" and i3.op_str == "x2, x22"
-                    and i4.mnemonic == "bl" and i5.mnemonic == "b"):
+            if not (
+                i3.mnemonic == "mov"
+                and i3.op_str == "x2, x22"
+                and i4.mnemonic == "bl"
+                and i5.mnemonic == "b"
+            ):
                 continue
             if i4.operands and i4.operands[0].imm == fn:
                 stubs.append(off)
 
         if len(stubs) != 1:
-            self._log(f"  [-] TXM JB: selector42|29 stub expected 1, found {len(stubs)}")
+            self._log(
+                f"  [-] TXM JB: selector42|29 stub expected 1, found {len(stubs)}"
+            )
             return False
         stub_off = stubs[0]
 
@@ -268,14 +302,22 @@ class TXMJBPatcher(TXMPatcher):
             self._log("  [-] TXM JB: no UDF cave found for selector42|29 shellcode")
             return False
 
-        self.emit(stub_off, self._asm_at(f"b #0x{cave:X}", stub_off),
-                  "selector42|29: branch to shellcode")
+        self.emit(
+            stub_off,
+            self._asm_at(f"b #0x{cave:X}", stub_off),
+            "selector42|29: branch to shellcode",
+        )
         self.emit(cave, NOP, "selector42|29 shellcode pad: udf -> nop")
         self.emit(cave + 4, MOV_X0_1, "selector42|29 shellcode: mov x0,#1")
-        self.emit(cave + 8, STRB_W0_X20_30, "selector42|29 shellcode: strb w0,[x20,#0x30]")
+        self.emit(
+            cave + 8, STRB_W0_X20_30, "selector42|29 shellcode: strb w0,[x20,#0x30]"
+        )
         self.emit(cave + 12, MOV_X0_X20, "selector42|29 shellcode: mov x0,x20")
-        self.emit(cave + 16, self._asm_at(f"b #0x{stub_off + 4:X}", cave + 16),
-                  "selector42|29 shellcode: branch back")
+        self.emit(
+            cave + 16,
+            self._asm_at(f"b #0x{stub_off + 4:X}", cave + 16),
+            "selector42|29 shellcode: branch back",
+        )
         return True
 
     def patch_debugger_entitlement_force_true(self):
@@ -294,10 +336,15 @@ class TXMJBPatcher(TXMPatcher):
                 p2 = _disasm_one(self.raw, scan - 8) if scan >= 8 else None
                 if not all((i, n, p1, p2)):
                     continue
-                if (i.mnemonic == "bl"
-                        and n.mnemonic == "tbnz" and n.op_str.startswith("w0, #0,")
-                        and p1.mnemonic == "mov" and p1.op_str == "x2, #0"
-                        and p2.mnemonic == "mov" and p2.op_str == "x0, #0"):
+                if (
+                    i.mnemonic == "bl"
+                    and n.mnemonic == "tbnz"
+                    and n.op_str.startswith("w0, #0,")
+                    and p1.mnemonic == "mov"
+                    and p1.op_str == "x2, #0"
+                    and p2.mnemonic == "mov"
+                    and p2.op_str == "x0, #0"
+                ):
                     cands.append(scan)
 
         if len(cands) != 1:
@@ -310,7 +357,8 @@ class TXMJBPatcher(TXMPatcher):
     def patch_developer_mode_bypass(self):
         """Developer-mode bypass: NOP conditional guard before deny log path."""
         refs = self._find_string_refs(
-            b"developer mode enabled due to system policy configuration")
+            b"developer mode enabled due to system policy configuration"
+        )
         if not refs:
             self._log("  [-] TXM JB: developer-mode string ref not found")
             return False
@@ -328,7 +376,9 @@ class TXMJBPatcher(TXMPatcher):
                 cands.append(back)
 
         if len(cands) != 1:
-            self._log(f"  [-] TXM JB: expected 1 developer mode guard, found {len(cands)}")
+            self._log(
+                f"  [-] TXM JB: expected 1 developer mode guard, found {len(cands)}"
+            )
             return False
 
         self.emit(cands[0], NOP, "developer mode bypass")

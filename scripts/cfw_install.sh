@@ -43,7 +43,10 @@ SSH_OPTS=(
 )
 
 # ── Helpers ─────────────────────────────────────────────────────
-die() { echo "[-] $*" >&2; exit 1; }
+die() {
+    echo "[-] $*" >&2
+    exit 1
+}
 
 is_exec_compatible() {
     local bin="$1"
@@ -88,8 +91,8 @@ resolve_sshpass() {
         return
     fi
 
-    [[ -n "$host_sshpass" ]] && \
-        echo "[!] Host sshpass is present but incompatible with host arch: $host_sshpass"
+    [[ -n "$host_sshpass" ]] \
+        && echo "[!] Host sshpass is present but incompatible with host arch: $host_sshpass"
     die "No compatible sshpass found. Install one with: brew install hudochenkov/sshpass/sshpass"
 }
 
@@ -159,8 +162,8 @@ setup_cfw_input() {
 
 # ── Check prerequisites ────────────────────────────────────────
 check_prereqs() {
-    command -v ipsw  >/dev/null 2>&1 || die "'ipsw' not found. Install: brew install blacktop/tap/ipsw"
-    command -v aea   >/dev/null 2>&1 || die "'aea' not found (requires macOS 12+)"
+    command -v ipsw >/dev/null 2>&1 || die "'ipsw' not found. Install: brew install blacktop/tap/ipsw"
+    command -v aea >/dev/null 2>&1 || die "'aea' not found (requires macOS 12+)"
     command -v python3 >/dev/null 2>&1 || die "python3 not found"
     python3 -c "import capstone, keystone" 2>/dev/null \
         || die "Missing Python deps. Install: pip install capstone keystone-engine"
@@ -455,10 +458,10 @@ ssh_cmd "/sbin/umount /mnt3 2>/dev/null || true"
 # Only remove temp binaries
 echo "[*] Cleaning up temp binaries..."
 rm -f "$TEMP_DIR/seputil" \
-      "$TEMP_DIR/launchd_cache_loader" \
-      "$TEMP_DIR/mobileactivationd" \
-      "$TEMP_DIR/vphoned" \
-      "$TEMP_DIR/launchd.plist"
+    "$TEMP_DIR/launchd_cache_loader" \
+    "$TEMP_DIR/mobileactivationd" \
+    "$TEMP_DIR/vphoned" \
+    "$TEMP_DIR/launchd.plist"
 
 echo ""
 echo "[+] CFW installation complete!"

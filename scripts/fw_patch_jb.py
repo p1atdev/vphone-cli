@@ -40,12 +40,14 @@ def patch_txm_jb(data):
 COMPONENTS = [
     # (name, search_base_is_restore, search_patterns, patch_function, preserve_payp)
     # NOTE: iBSS nonce skip removed — nonce is not required for boot.
-    ("TXM (JB)", True,
-     ["Firmware/txm.iphoneos.research.im4p"],
-     patch_txm_jb, True),
-    ("kernelcache (JB)", True,
-     ["kernelcache.research.vphone600"],
-     patch_kernelcache_jb, True),
+    ("TXM (JB)", True, ["Firmware/txm.iphoneos.research.im4p"], patch_txm_jb, True),
+    (
+        "kernelcache (JB)",
+        True,
+        ["kernelcache.research.vphone600"],
+        patch_kernelcache_jb,
+        True,
+    ),
 ]
 
 
@@ -63,8 +65,7 @@ def patch_component(path, patch_fn, name, preserve_payp):
         print(f"  [-] FAILED: {name}")
         sys.exit(1)
 
-    save_firmware(path, im4p, data, was_im4p,
-                  original_raw if preserve_payp else None)
+    save_firmware(path, im4p, data, was_im4p, original_raw if preserve_payp else None)
     print(f"  [+] saved ({fmt})")
 
 

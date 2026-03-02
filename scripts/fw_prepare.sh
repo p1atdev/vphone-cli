@@ -60,7 +60,7 @@ fetch() {
     fi
 }
 
-fetch "$IPHONE_SOURCE"  "$IPHONE_IPSW_PATH"
+fetch "$IPHONE_SOURCE" "$IPHONE_IPSW_PATH"
 fetch "$CLOUDOS_SOURCE" "$CLOUDOS_IPSW_PATH"
 
 # ── Extract ───────────────────────────────────────────────────────────

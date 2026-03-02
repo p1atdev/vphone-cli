@@ -61,16 +61,24 @@ KERNEL_FOURCC = "rkrn"
 
 # Files to remove from ramdisk to save space
 RAMDISK_REMOVE = [
-    "usr/bin/img4tool", "usr/bin/img4",
-    "usr/sbin/dietappleh13camerad", "usr/sbin/dietappleh16camerad",
-    "usr/local/bin/wget", "usr/local/bin/procexp",
+    "usr/bin/img4tool",
+    "usr/bin/img4",
+    "usr/sbin/dietappleh13camerad",
+    "usr/sbin/dietappleh16camerad",
+    "usr/local/bin/wget",
+    "usr/local/bin/procexp",
 ]
 
 # Directories to re-sign in ramdisk
 SIGN_DIRS = [
-    "usr/local/bin/*", "usr/local/lib/*",
-    "usr/bin/*", "bin/*",
-    "usr/lib/*", "sbin/*", "usr/sbin/*", "usr/libexec/*",
+    "usr/local/bin/*",
+    "usr/local/lib/*",
+    "usr/bin/*",
+    "bin/*",
+    "usr/lib/*",
+    "sbin/*",
+    "usr/sbin/*",
+    "usr/libexec/*",
 ]
 
 # Compressed archive of ramdisk_input/ (located next to this script)
@@ -80,6 +88,7 @@ INPUT_ARCHIVE = "ramdisk_input.tar.zst"
 # ══════════════════════════════════════════════════════════════════
 # Setup — extract ramdisk_input/ from zstd archive if needed
 # ══════════════════════════════════════════════════════════════════
+
 
 def setup_input(vm_dir):
     """Ensure ramdisk_input/ exists, extracting from .tar.zst if needed."""
@@ -108,6 +117,7 @@ def setup_input(vm_dir):
 # SHSH / signing helpers
 # ══════════════════════════════════════════════════════════════════
 
+
 def find_shsh(shsh_dir):
     """Find first SHSH blob in directory."""
     for ext in ("*.shsh", "*.shsh2"):
@@ -127,7 +137,8 @@ def extract_im4m(shsh_path, im4m_path):
         open(tmp, "wb").write(raw)
         subprocess.run(
             ["pyimg4", "im4m", "extract", "-i", tmp, "-o", im4m_path],
-            check=True, capture_output=True,
+            check=True,
+            capture_output=True,
         )
     finally:
         if os.path.exists(tmp):
@@ -139,15 +150,25 @@ def sign_img4(im4p_path, img4_path, im4m_path, tag=None, input_dir="."):
     if tag:
         img4_tool = os.path.join(input_dir, "tools/img4")
         subprocess.run(
-            [img4_tool, "-i", im4p_path, "-o", img4_path,
-             "-M", im4m_path, "-T", tag],
-            check=True, capture_output=True,
+            [img4_tool, "-i", im4p_path, "-o", img4_path, "-M", im4m_path, "-T", tag],
+            check=True,
+            capture_output=True,
         )
     else:
         subprocess.run(
-            ["pyimg4", "img4", "create",
-             "-p", im4p_path, "-o", img4_path, "-m", im4m_path],
-            check=True, capture_output=True,
+            [
+                "pyimg4",
+                "img4",
+                "create",
+                "-p",
+                im4p_path,
+                "-o",
+                img4_path,
+                "-m",
+                im4m_path,
+            ],
+            check=True,
+            capture_output=True,
         )
 
 
@@ -161,9 +182,7 @@ def is_exec_compatible(path):
     if not path or not os.path.isfile(path) or not os.access(path, os.X_OK):
         return False
 
-    file_out = subprocess.run(
-        ["file", path], capture_output=True, text=True
-    ).stdout
+    file_out = subprocess.run(["file", path], capture_output=True, text=True).stdout
 
     # Non-Mach-O executables (scripts/wrappers) are accepted.
     if "Mach-O" not in file_out:
@@ -189,17 +208,23 @@ def resolve_tar_extractor(input_dir):
     if is_exec_compatible(bundled_gtar):
         return bundled_gtar, True, "bundled gtar"
     if os.path.exists(bundled_gtar):
-        print(f"  [!] Bundled gtar is not compatible with host arch ({host_arch}): {bundled_gtar}")
+        print(
+            f"  [!] Bundled gtar is not compatible with host arch ({host_arch}): {bundled_gtar}"
+        )
 
     if host_gtar and is_exec_compatible(host_gtar):
         return host_gtar, True, "host gtar"
     if host_gtar:
-        print(f"  [!] Host gtar is present but incompatible with host arch ({host_arch}): {host_gtar}")
+        print(
+            f"  [!] Host gtar is present but incompatible with host arch ({host_arch}): {host_gtar}"
+        )
 
     if host_tar and is_exec_compatible(host_tar):
         return host_tar, False, "host tar"
     if host_tar:
-        print(f"  [!] Host tar is present but incompatible with host arch ({host_arch}): {host_tar}")
+        print(
+            f"  [!] Host tar is present but incompatible with host arch ({host_arch}): {host_tar}"
+        )
 
     print("[-] No compatible tar extractor found.")
     print("    Install GNU tar with: brew install gnu-tar")
@@ -209,6 +234,7 @@ def resolve_tar_extractor(input_dir):
 # ══════════════════════════════════════════════════════════════════
 # Firmware extraction and IM4P creation
 # ══════════════════════════════════════════════════════════════════
+
 
 def extract_to_raw(src_path, raw_path):
     """Extract IM4P payload to .raw file. Returns (im4p_obj, data, original_raw)."""
@@ -233,6 +259,7 @@ def create_im4p_uncompressed(raw_data, fourcc, description, output_path):
 # iBEC boot-args patching
 # ══════════════════════════════════════════════════════════════════
 
+
 def patch_ibec_bootargs(data):
     """Replace normal boot-args with ramdisk boot-args in already-patched iBEC.
 
@@ -247,7 +274,7 @@ def patch_ibec_bootargs(data):
         return False
 
     args = RAMDISK_BOOT_ARGS + b"\x00"
-    data[off:off + len(args)] = args
+    data[off : off + len(args)] = args
 
     # Zero out any leftover from the previous string
     end = off + len(args)
@@ -262,6 +289,7 @@ def patch_ibec_bootargs(data):
 # ══════════════════════════════════════════════════════════════════
 # Ramdisk DMG building
 # ══════════════════════════════════════════════════════════════════
+
 
 def build_ramdisk(restore_dir, im4m_path, vm_dir, input_dir, output_dir, temp_dir):
     """Build custom SSH ramdisk from restore DMG."""
@@ -280,36 +308,83 @@ def build_ramdisk(restore_dir, im4m_path, vm_dir, input_dir, output_dir, temp_di
 
     # Extract base ramdisk
     print("  Extracting base ramdisk...")
-    run(["pyimg4", "im4p", "extract", "-i", ramdisk_src, "-o", ramdisk_raw],
-        capture_output=True)
+    run(
+        ["pyimg4", "im4p", "extract", "-i", ramdisk_src, "-o", ramdisk_raw],
+        capture_output=True,
+    )
 
     os.makedirs(mountpoint, exist_ok=True)
 
     try:
         # Mount, create expanded copy
         print("  Mounting base ramdisk...")
-        run(["sudo", "hdiutil", "attach", "-mountpoint", mountpoint,
-             ramdisk_raw, "-owners", "off"])
+        run(
+            [
+                "sudo",
+                "hdiutil",
+                "attach",
+                "-mountpoint",
+                mountpoint,
+                ramdisk_raw,
+                "-owners",
+                "off",
+            ]
+        )
 
         print("  Creating expanded ramdisk (254 MB)...")
-        run(["sudo", "hdiutil", "create", "-size", "254m",
-             "-imagekey", "diskimage-class=CRawDiskImage",
-             "-format", "UDZO", "-fs", "APFS", "-layout", "NONE",
-             "-srcfolder", mountpoint, "-copyuid", "root",
-             ramdisk_custom])
+        run(
+            [
+                "sudo",
+                "hdiutil",
+                "create",
+                "-size",
+                "254m",
+                "-imagekey",
+                "diskimage-class=CRawDiskImage",
+                "-format",
+                "UDZO",
+                "-fs",
+                "APFS",
+                "-layout",
+                "NONE",
+                "-srcfolder",
+                mountpoint,
+                "-copyuid",
+                "root",
+                ramdisk_custom,
+            ]
+        )
         run(["sudo", "hdiutil", "detach", "-force", mountpoint])
 
         # Mount expanded, inject SSH
         print("  Mounting expanded ramdisk...")
-        run(["sudo", "hdiutil", "attach", "-mountpoint", mountpoint,
-             ramdisk_custom, "-owners", "off"])
+        run(
+            [
+                "sudo",
+                "hdiutil",
+                "attach",
+                "-mountpoint",
+                mountpoint,
+                ramdisk_custom,
+                "-owners",
+                "off",
+            ]
+        )
 
         print("  Injecting SSH tools...")
         ssh_tar = os.path.join(input_dir, "ssh.tar.gz")
         extract_cmd = ["sudo", tar_bin, "-x", "-f", ssh_tar, "-C", mountpoint]
         if tar_is_gnu:
-            extract_cmd = ["sudo", tar_bin, "-x", "--no-overwrite-dir",
-                           "-f", ssh_tar, "-C", mountpoint]
+            extract_cmd = [
+                "sudo",
+                tar_bin,
+                "-x",
+                "--no-overwrite-dir",
+                "-f",
+                ssh_tar,
+                "-C",
+                mountpoint,
+            ]
         run(extract_cmd)
 
         # Remove unnecessary files
@@ -326,9 +401,14 @@ def build_ramdisk(restore_dir, im4m_path, vm_dir, input_dir, output_dir, temp_di
         for pattern in SIGN_DIRS:
             for path in glob.glob(os.path.join(mountpoint, pattern)):
                 if os.path.isfile(path) and not os.path.islink(path):
-                    if "Mach-O" in subprocess.run(
-                            ["file", path], capture_output=True, text=True,
-                        ).stdout:
+                    if (
+                        "Mach-O"
+                        in subprocess.run(
+                            ["file", path],
+                            capture_output=True,
+                            text=True,
+                        ).stdout
+                    ):
                         subprocess.run(
                             [ldid, "-S", "-M", f"-K{signcert}", path],
                             capture_output=True,
@@ -347,31 +427,45 @@ def build_ramdisk(restore_dir, im4m_path, vm_dir, input_dir, output_dir, temp_di
         tc_im4p = os.path.join(temp_dir, "trustcache.im4p")
 
         run([tc_tool, "create", tc_raw, mountpoint])
-        run(["pyimg4", "im4p", "create", "-i", tc_raw, "-o", tc_im4p,
-             "-f", "rtsc"], capture_output=True)
-        sign_img4(tc_im4p, os.path.join(output_dir, "trustcache.img4"),
-                  im4m_path, input_dir=input_dir)
+        run(
+            ["pyimg4", "im4p", "create", "-i", tc_raw, "-o", tc_im4p, "-f", "rtsc"],
+            capture_output=True,
+        )
+        sign_img4(
+            tc_im4p,
+            os.path.join(output_dir, "trustcache.img4"),
+            im4m_path,
+            input_dir=input_dir,
+        )
         print(f"  [+] trustcache.img4")
 
     finally:
-        subprocess.run(["sudo", "hdiutil", "detach", "-force", mountpoint],
-                       capture_output=True)
+        subprocess.run(
+            ["sudo", "hdiutil", "detach", "-force", mountpoint], capture_output=True
+        )
 
     # Shrink and sign ramdisk
     run(["sudo", "hdiutil", "resize", "-sectors", "min", ramdisk_custom])
 
     print("  Signing ramdisk...")
     rd_im4p = os.path.join(temp_dir, "ramdisk.im4p")
-    run(["pyimg4", "im4p", "create", "-i", ramdisk_custom, "-o", rd_im4p,
-         "-f", "rdsk"], capture_output=True)
-    sign_img4(rd_im4p, os.path.join(output_dir, "ramdisk.img4"),
-              im4m_path, input_dir=input_dir)
+    run(
+        ["pyimg4", "im4p", "create", "-i", ramdisk_custom, "-o", rd_im4p, "-f", "rdsk"],
+        capture_output=True,
+    )
+    sign_img4(
+        rd_im4p,
+        os.path.join(output_dir, "ramdisk.img4"),
+        im4m_path,
+        input_dir=input_dir,
+    )
     print(f"  [+] ramdisk.img4")
 
 
 # ══════════════════════════════════════════════════════════════════
 # Main
 # ══════════════════════════════════════════════════════════════════
+
 
 def main():
     vm_dir = os.path.abspath(sys.argv[1] if len(sys.argv) > 1 else os.getcwd())
@@ -426,96 +520,149 @@ def main():
     print(f"\n{'=' * 60}")
     print(f"  1. iBSS (already patched — extract & sign)")
     print(f"{'=' * 60}")
-    ibss_src = find_file(restore_dir, [
-        "Firmware/dfu/iBSS.vresearch101.RELEASE.im4p",
-    ], "iBSS")
+    ibss_src = find_file(
+        restore_dir,
+        [
+            "Firmware/dfu/iBSS.vresearch101.RELEASE.im4p",
+        ],
+        "iBSS",
+    )
     ibss_raw = os.path.join(temp_dir, "iBSS.raw")
     ibss_im4p = os.path.join(temp_dir, "iBSS.im4p")
     im4p_obj, data, _ = extract_to_raw(ibss_src, ibss_raw)
     create_im4p_uncompressed(data, im4p_obj.fourcc, im4p_obj.description, ibss_im4p)
-    sign_img4(ibss_im4p, os.path.join(output_dir, "iBSS.vresearch101.RELEASE.img4"),
-              im4m_path, input_dir=input_dir)
+    sign_img4(
+        ibss_im4p,
+        os.path.join(output_dir, "iBSS.vresearch101.RELEASE.img4"),
+        im4m_path,
+        input_dir=input_dir,
+    )
     print(f"  [+] iBSS.vresearch101.RELEASE.img4")
 
     # ── 2. iBEC (already patched — just fix boot-args for ramdisk)
     print(f"\n{'=' * 60}")
     print(f"  2. iBEC (patch boot-args for ramdisk)")
     print(f"{'=' * 60}")
-    ibec_src = find_file(restore_dir, [
-        "Firmware/dfu/iBEC.vresearch101.RELEASE.im4p",
-    ], "iBEC")
+    ibec_src = find_file(
+        restore_dir,
+        [
+            "Firmware/dfu/iBEC.vresearch101.RELEASE.im4p",
+        ],
+        "iBEC",
+    )
     ibec_raw = os.path.join(temp_dir, "iBEC.raw")
     ibec_im4p = os.path.join(temp_dir, "iBEC.im4p")
     im4p_obj, data, _ = extract_to_raw(ibec_src, ibec_raw)
     patch_ibec_bootargs(data)
     create_im4p_uncompressed(data, im4p_obj.fourcc, im4p_obj.description, ibec_im4p)
-    sign_img4(ibec_im4p, os.path.join(output_dir, "iBEC.vresearch101.RELEASE.img4"),
-              im4m_path, input_dir=input_dir)
+    sign_img4(
+        ibec_im4p,
+        os.path.join(output_dir, "iBEC.vresearch101.RELEASE.img4"),
+        im4m_path,
+        input_dir=input_dir,
+    )
     print(f"  [+] iBEC.vresearch101.RELEASE.img4")
 
     # ── 3. SPTM (sign only) ─────────────────────────────────────
     print(f"\n{'=' * 60}")
     print(f"  3. SPTM (sign only)")
     print(f"{'=' * 60}")
-    sptm_src = find_file(restore_dir, [
-        "Firmware/sptm.vresearch1.release.im4p",
-    ], "SPTM")
-    sign_img4(sptm_src, os.path.join(output_dir, "sptm.vresearch1.release.img4"),
-              im4m_path, tag="sptm", input_dir=input_dir)
+    sptm_src = find_file(
+        restore_dir,
+        [
+            "Firmware/sptm.vresearch1.release.im4p",
+        ],
+        "SPTM",
+    )
+    sign_img4(
+        sptm_src,
+        os.path.join(output_dir, "sptm.vresearch1.release.img4"),
+        im4m_path,
+        tag="sptm",
+        input_dir=input_dir,
+    )
     print(f"  [+] sptm.vresearch1.release.img4")
 
     # ── 4. DeviceTree (sign only) ────────────────────────────────
     print(f"\n{'=' * 60}")
     print(f"  4. DeviceTree (sign only)")
     print(f"{'=' * 60}")
-    dt_src = find_file(restore_dir, [
-        "Firmware/all_flash/DeviceTree.vphone600ap.im4p",
-    ], "DeviceTree")
-    sign_img4(dt_src, os.path.join(output_dir, "DeviceTree.vphone600ap.img4"),
-              im4m_path, tag="rdtr", input_dir=input_dir)
+    dt_src = find_file(
+        restore_dir,
+        [
+            "Firmware/all_flash/DeviceTree.vphone600ap.im4p",
+        ],
+        "DeviceTree",
+    )
+    sign_img4(
+        dt_src,
+        os.path.join(output_dir, "DeviceTree.vphone600ap.img4"),
+        im4m_path,
+        tag="rdtr",
+        input_dir=input_dir,
+    )
     print(f"  [+] DeviceTree.vphone600ap.img4")
 
     # ── 5. SEP (sign only) ───────────────────────────────────────
     print(f"\n{'=' * 60}")
     print(f"  5. SEP (sign only)")
     print(f"{'=' * 60}")
-    sep_src = find_file(restore_dir, [
-        "Firmware/all_flash/sep-firmware.vresearch101.RELEASE.im4p",
-    ], "SEP")
-    sign_img4(sep_src, os.path.join(output_dir, "sep-firmware.vresearch101.RELEASE.img4"),
-              im4m_path, tag="rsep", input_dir=input_dir)
+    sep_src = find_file(
+        restore_dir,
+        [
+            "Firmware/all_flash/sep-firmware.vresearch101.RELEASE.im4p",
+        ],
+        "SEP",
+    )
+    sign_img4(
+        sep_src,
+        os.path.join(output_dir, "sep-firmware.vresearch101.RELEASE.img4"),
+        im4m_path,
+        tag="rsep",
+        input_dir=input_dir,
+    )
     print(f"  [+] sep-firmware.vresearch101.RELEASE.img4")
 
     # ── 6. TXM (release variant — needs patching) ────────────────
     print(f"\n{'=' * 60}")
     print(f"  6. TXM (patch release variant)")
     print(f"{'=' * 60}")
-    txm_src = find_file(restore_dir, [
-        "Firmware/txm.iphoneos.release.im4p",
-    ], "TXM")
+    txm_src = find_file(
+        restore_dir,
+        [
+            "Firmware/txm.iphoneos.release.im4p",
+        ],
+        "TXM",
+    )
     txm_raw = os.path.join(temp_dir, "txm.raw")
     im4p_obj, data, original_raw = extract_to_raw(txm_src, txm_raw)
     patch_txm(data)
     txm_im4p = os.path.join(temp_dir, "txm.im4p")
     _save_im4p_with_payp(txm_im4p, TXM_FOURCC, data, original_raw)
-    sign_img4(txm_im4p, os.path.join(output_dir, "txm.img4"),
-              im4m_path, input_dir=input_dir)
+    sign_img4(
+        txm_im4p, os.path.join(output_dir, "txm.img4"), im4m_path, input_dir=input_dir
+    )
     print(f"  [+] txm.img4")
 
     # ── 7. Kernelcache (already patched — repack with rkrn) ──────
     print(f"\n{'=' * 60}")
     print(f"  7. Kernelcache (already patched — repack as rkrn)")
     print(f"{'=' * 60}")
-    kc_src = find_file(restore_dir, [
-        "kernelcache.research.vphone600",
-    ], "kernelcache")
+    kc_src = find_file(
+        restore_dir,
+        [
+            "kernelcache.research.vphone600",
+        ],
+        "kernelcache",
+    )
     kc_raw = os.path.join(temp_dir, "kcache.raw")
     im4p_obj, data, original_raw = extract_to_raw(kc_src, kc_raw)
     print(f"  format: IM4P, {len(data)} bytes")
     kc_im4p = os.path.join(temp_dir, "krnl.im4p")
     _save_im4p_with_payp(kc_im4p, KERNEL_FOURCC, data, original_raw)
-    sign_img4(kc_im4p, os.path.join(output_dir, "krnl.img4"),
-              im4m_path, input_dir=input_dir)
+    sign_img4(
+        kc_im4p, os.path.join(output_dir, "krnl.img4"), im4m_path, input_dir=input_dir
+    )
     print(f"  [+] krnl.img4")
 
     # ── 8. Ramdisk + Trustcache ──────────────────────────────────

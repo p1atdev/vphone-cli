@@ -26,7 +26,10 @@ mkdir -p "$SRC" "$LOG"
 
 # ── Helpers ──────────────────────────────────────────────────────
 
-die() { echo "[-] $*" >&2; exit 1; }
+die() {
+    echo "[-] $*" >&2
+    exit 1
+}
 
 check_tools() {
     local missing=()
@@ -35,7 +38,7 @@ check_tools() {
     done
     command -v glibtoolize &>/dev/null || command -v libtoolize &>/dev/null \
         || missing+=("libtool(ize)")
-    (( ${#missing[@]} == 0 )) || die "Missing: ${missing[*]} — brew install ${missing[*]}"
+    ((${#missing[@]} == 0)) || die "Missing: ${missing[*]} — brew install ${missing[*]}"
 }
 
 clone() {
@@ -50,14 +53,15 @@ clone() {
 }
 
 build_lib() {
-    local name=$1; shift
+    local name=$1
+    shift
     echo "  $name"
     cd "$SRC/$name"
     ./autogen.sh --prefix="$PREFIX" \
         --enable-shared=no --enable-static=yes \
-        "$@" > "$LOG/$name-configure.log" 2>&1
-    make -j"$NPROC" > "$LOG/$name-build.log" 2>&1
-    make install > "$LOG/$name-install.log" 2>&1
+        "$@" >"$LOG/$name-configure.log" 2>&1
+    make -j"$NPROC" >"$LOG/$name-build.log" 2>&1
+    make install >"$LOG/$name-install.log" 2>&1
     cd "$SRC"
 }
 
@@ -85,9 +89,9 @@ fi
 echo "  openssl ($OPENSSL_TAG)"
 cd "$SRC/openssl"
 ./config --prefix="$PREFIX" no-shared no-tests \
-    > "$LOG/openssl-configure.log" 2>&1
-make -j"$NPROC" > "$LOG/openssl-build.log" 2>&1
-make install_sw > "$LOG/openssl-install.log" 2>&1
+    >"$LOG/openssl-configure.log" 2>&1
+make -j"$NPROC" >"$LOG/openssl-build.log" 2>&1
+make install_sw >"$LOG/openssl-install.log" 2>&1
 cd "$SRC"
 
 # ── 2. Core libraries ───────────────────────────────────────────
@@ -96,8 +100,8 @@ echo "[2/4] Core libraries"
 for lib in libplist libimobiledevice-glue libusbmuxd libtatsu libimobiledevice; do
     clone "https://github.com/libimobiledevice/$lib" "$SRC/$lib"
     case "$lib" in
-        libplist|libimobiledevice) build_lib "$lib" --without-cython ;;
-        *)                         build_lib "$lib" ;;
+        libplist | libimobiledevice) build_lib "$lib" --without-cython ;;
+        *) build_lib "$lib" ;;
     esac
 done
 
@@ -120,8 +124,8 @@ build_lib libirecovery
 LIBZIP_VER="1.11.4"
 if [[ ! -f "$PREFIX/lib/pkgconfig/libzip.pc" ]]; then
     echo "  libzip"
-    [[ -d "$SRC/libzip-$LIBZIP_VER" ]] || \
-        curl -LfsS "https://github.com/nih-at/libzip/releases/download/v$LIBZIP_VER/libzip-$LIBZIP_VER.tar.gz" \
+    [[ -d "$SRC/libzip-$LIBZIP_VER" ]] \
+        || curl -LfsS "https://github.com/nih-at/libzip/releases/download/v$LIBZIP_VER/libzip-$LIBZIP_VER.tar.gz" \
         | tar xz -C "$SRC"
     cmake -S "$SRC/libzip-$LIBZIP_VER" -B "$SRC/libzip-$LIBZIP_VER/build" \
         -DCMAKE_INSTALL_PREFIX="$PREFIX" -DCMAKE_OSX_SYSROOT="$SDKROOT" \
@@ -129,11 +133,11 @@ if [[ ! -f "$PREFIX/lib/pkgconfig/libzip.pc" ]]; then
         -DBUILD_REGRESS=OFF -DBUILD_TOOLS=OFF \
         -DENABLE_BZIP2=OFF -DENABLE_LZMA=OFF -DENABLE_ZSTD=OFF \
         -DENABLE_GNUTLS=OFF -DENABLE_MBEDTLS=OFF -DENABLE_OPENSSL=OFF \
-        > "$LOG/libzip-cmake.log" 2>&1
+        >"$LOG/libzip-cmake.log" 2>&1
     cmake --build "$SRC/libzip-$LIBZIP_VER/build" -j"$NPROC" \
-        > "$LOG/libzip-build.log" 2>&1
+        >"$LOG/libzip-build.log" 2>&1
     cmake --install "$SRC/libzip-$LIBZIP_VER/build" \
-        > "$LOG/libzip-install.log" 2>&1
+        >"$LOG/libzip-install.log" 2>&1
 fi
 
 # ── 4. idevicerestore ───────────────────────────────────────────

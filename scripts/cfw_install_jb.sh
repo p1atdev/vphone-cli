@@ -49,7 +49,10 @@ SSH_OPTS=(
 )
 
 # ── Helpers ─────────────────────────────────────────────────────
-die() { echo "[-] $*" >&2; exit 1; }
+die() {
+    echo "[-] $*" >&2
+    exit 1
+}
 
 is_exec_compatible() {
     local bin="$1"
@@ -94,8 +97,8 @@ resolve_sshpass() {
         return
     fi
 
-    [[ -n "$host_sshpass" ]] && \
-        echo "[!] Host sshpass is present but incompatible with host arch: $host_sshpass"
+    [[ -n "$host_sshpass" ]] \
+        && echo "[!] Host sshpass is present but incompatible with host arch: $host_sshpass"
     die "No compatible sshpass found. Install one with: brew install hudochenkov/sshpass/sshpass"
 }
 
@@ -254,7 +257,7 @@ ssh_cmd "/sbin/umount /mnt5 2>/dev/null || true"
 
 echo "[*] Cleaning up temp binaries..."
 rm -f "$TEMP_DIR/launchd" \
-      "$TEMP_DIR/bootstrap-iphoneos-arm64.tar"
+    "$TEMP_DIR/bootstrap-iphoneos-arm64.tar"
 
 echo ""
 echo "[+] CFW + JB installation complete!"

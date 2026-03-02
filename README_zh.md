@@ -8,10 +8,10 @@
 
 ## 测试环境
 
-| 主机 | iPhone 系统 | CloudOS |
-|------|-------------|---------|
-| Mac16,12 26.3 | `17,3_26.1_23B85` | `26.1-23B85` |
-| Mac16,12 26.3 | `17,3_26.3_23D127` | `26.1-23B85` |
+| 主机          | iPhone 系统        | CloudOS       |
+| ------------- | ------------------ | ------------- |
+| Mac16,12 26.3 | `17,3_26.1_23B85`  | `26.1-23B85`  |
+| Mac16,12 26.3 | `17,3_26.3_23D127` | `26.1-23B85`  |
 | Mac16,12 26.3 | `17,3_26.3_23D127` | `26.3-23D128` |
 
 ## 先决条件
@@ -158,19 +158,19 @@ iproxy 5901 5901     # VNC
 
 运行 `make help` 获取完整列表。关键目标：
 
-| 目标 | 描述 |
-|------|------|
-| `build` | 构建并签名 vphone-cli |
-| `vm_new` | 创建 VM 目录 |
-| `fw_prepare` | 下载/合并 IPSWs |
-| `fw_patch` | 修补启动链 |
+| 目标                | 描述                      |
+| ------------------- | ------------------------- |
+| `build`             | 构建并签名 vphone-cli     |
+| `vm_new`            | 创建 VM 目录              |
+| `fw_prepare`        | 下载/合并 IPSWs           |
+| `fw_patch`          | 修补启动链                |
 | `boot` / `boot_dfu` | 启动 VM（GUI / 无头 DFU） |
-| `restore_get_shsh` | 获取 SHSH blob |
-| `restore` | 刷写固件 |
-| `ramdisk_build` | 构建 SSH ramdisk |
-| `ramdisk_send` | 发送 ramdisk 到设备 |
-| `cfw_install` | 安装 CFW 修改 |
-| `clean` | 删除构建产物 |
+| `restore_get_shsh`  | 获取 SHSH blob            |
+| `restore`           | 刷写固件                  |
+| `ramdisk_build`     | 构建 SSH ramdisk          |
+| `ramdisk_send`      | 发送 ramdisk 到设备       |
+| `cfw_install`       | 安装 CFW 修改             |
+| `clean`             | 删除构建产物              |
 
 ## 常见问题（FAQ）
 
