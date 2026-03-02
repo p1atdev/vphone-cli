@@ -36,7 +36,14 @@ sudo nvram boot-args="amfi_get_out_of_my_way=1 -v"
 **安装依赖：**
 
 ```bash
-brew install gnu-tar sshpass keystone autoconf automake pkg-config libtool
+brew install gnu-tar sshpass keystone autoconf automake pkg-config libtool git-lfs
+```
+
+**Git LFS** —— 本仓库使用 Git LFS 存储大型资源文件。构建前请先安装并拉取：
+
+```bash
+git lfs install
+git lfs pull
 ```
 
 ## 第一次设置

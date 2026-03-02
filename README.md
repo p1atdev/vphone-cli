@@ -36,7 +36,14 @@ Restart once more.
 **Install dependencies:**
 
 ```bash
-brew install gnu-tar sshpass keystone autoconf automake pkg-config libtool
+brew install gnu-tar sshpass keystone autoconf automake pkg-config libtool git-lfs
+```
+
+**Git LFS** — this repo uses Git LFS for large resource archives. Install and pull before building:
+
+```bash
+git lfs install
+git lfs pull
 ```
 
 ## First setup
