@@ -108,7 +108,7 @@ vm_new:
 	zsh $(SCRIPTS)/vm_create.sh --dir $(VM_DIR) --disk-size $(DISK_SIZE)
 
 boot: build
-	cd $(VM_DIR) && "$(CURDIR)/$(BINARY)" \
+	cd $(VM_DIR) && "$(CURDIR)/$(BINARY)" boot \
 		--rom ./AVPBooter.vresearch1.bin \
 		--disk ./Disk.img \
 		--nvram ./nvram.bin \
@@ -118,7 +118,7 @@ boot: build
 		--sep-storage ./SEPStorage
 
 boot_dfu: build
-	cd $(VM_DIR) && "$(CURDIR)/$(BINARY)" \
+	cd $(VM_DIR) && "$(CURDIR)/$(BINARY)" boot \
 		--rom ./AVPBooter.vresearch1.bin \
 		--disk ./Disk.img \
 		--nvram ./nvram.bin \
@@ -132,15 +132,15 @@ boot_dfu: build
 # Firmware pipeline
 # ═══════════════════════════════════════════════════════════════════
 
-.PHONY: fw_prepare fw_patch fw_patch_jb
+.PHONY: fw_prepare fw_patch fw_patch_swift fw_patch_jb
 
 fw_prepare: build
 	cd $(VM_DIR) && bash "$(CURDIR)/$(SCRIPTS)/fw_prepare_swift.sh"
 
-# fw_patch:
-# 	cd $(VM_DIR) && $(PYTHON) "$(CURDIR)/$(SCRIPTS)/fw_patch.py" .
+fw_patch:
+	cd $(VM_DIR) && $(PYTHON) "$(CURDIR)/$(SCRIPTS)/fw_patch.py" .
 
-fw_patch: build
+fw_patch_swift: build
 	@echo "=== Patching firmware components (Swift) ==="
 	cd $(VM_DIR) && "$(CURDIR)/$(BINARY)" patch avpbooter AVPBooter.vresearch1.bin
 	cd $(VM_DIR) && "$(CURDIR)/$(BINARY)" patch ibss iPhone*_Restore/Firmware/dfu/iBSS.vresearch101.RELEASE.im4p
