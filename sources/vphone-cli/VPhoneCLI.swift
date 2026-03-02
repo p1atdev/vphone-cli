@@ -72,7 +72,10 @@ struct VPhoneCLI: ParsableCommand {
 
         // https://forums.swift.org/t/asyncparsablecommand-doesnt-work/71300/2
         func run() throws {
-            Task { @MainActor in
+            // ArgumentParser calls run() on the main thread. We must call app.run()
+            // synchronously here — using Task would let run() return first, causing
+            // the process to exit before the run loop ever starts.
+            MainActor.assumeIsolated {
                 let app = NSApplication.shared
                 let delegate = VPhoneAppDelegate(config: self)
                 app.delegate = delegate
