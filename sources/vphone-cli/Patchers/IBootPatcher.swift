@@ -33,7 +33,14 @@ class IBootPatcher: Patcher {
     // MARK: - Serial Labels
 
     private func patchSerialLabels() -> Int {
-        let label = "Loaded \(mode.uppercased())".data(using: .utf8) ?? Data()
+        // Match Python label casing: iBSS/iBEC use lowercase 'i', LLB stays uppercase.
+        let componentName: String
+        switch mode {
+        case "ibss": componentName = "iBSS"
+        case "ibec": componentName = "iBEC"
+        default: componentName = mode.uppercased()
+        }
+        let label = "Loaded \(componentName)".data(using: .utf8) ?? Data()
         var count = 0
         var searchIdx = 0
         var runs: [Int] = []
@@ -211,12 +218,17 @@ class IBootPatcher: Patcher {
     }
 
     private func findStringSlot(length: Int) -> Int? {
+        // Minimum null run size of 64 bytes matches Python's _find_string_slot.
         var searchIdx = 0x14000
         while searchIdx < data.count - length {
             if data[searchIdx] == 0 {
                 let runStart = searchIdx
                 while searchIdx < data.count && data[searchIdx] == 0 { searchIdx += 1 }
-                if searchIdx - runStart >= length + 16 { return (runStart + 8 + 15) & ~15 }
+                let runEnd = searchIdx
+                if runEnd - runStart >= 64 {
+                    let writeOff = (runStart + 8 + 15) & ~15
+                    if writeOff + length <= runEnd { return writeOff }
+                }
             } else {
                 searchIdx += 1
             }

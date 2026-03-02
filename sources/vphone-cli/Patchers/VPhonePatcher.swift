@@ -11,6 +11,7 @@ enum VPhonePatcher {
         var isIM4P = false
         var originalFourCC: String? = nil
         var originalDescription: String? = nil
+        var originalProperties: [ManifestProperty] = []
 
         if let im4p = try? IM4P(data: fileData) {
             isIM4P = true
@@ -20,6 +21,7 @@ enum VPhonePatcher {
                 try payload.decompress()
                 workingData = payload.data
             }
+            originalProperties = im4p.properties
             print("  [+] Detected IM4P container (\(originalFourCC ?? "unknown"))")
         }
 
@@ -42,9 +44,22 @@ enum VPhonePatcher {
                 print("  [*] Repackaging as IM4P...")
                 let newIm4p = IM4P()
                 newIm4p.fourcc = originalFourCC
-                newIm4p.description = originalDescription
                 let newPayload = IM4PData(data: finalOutputData)
-                newPayload.compression = Image4.Compression.none
+                // TXM and kernel: repackage with lzfse compression and preserve PAYP
+                // properties, matching Python's preserve_payp=True path.
+                // Description is intentionally nil — pyimg4's `im4p create` CLI
+                // drops it, producing IA5String(""). Matching this exactly ensures
+                // byte-identical IM4P output, which avoids any hash mismatch with
+                // downstream tools (idevicerestore personalization, ramdisk_build).
+                // iBoot components (ibss/ibec/llb): store uncompressed without PAYP.
+                let needsLzfseAndPayp = ["txm", "kernel"].contains(component.lowercased())
+                if needsLzfseAndPayp {
+                    newIm4p.description = nil
+                    newIm4p.properties = originalProperties
+                    try newPayload.compress(to: .lzfse)
+                } else {
+                    newIm4p.description = originalDescription
+                }
                 newIm4p.payload = newPayload
                 finalOutputData = try newIm4p.output()
             }
